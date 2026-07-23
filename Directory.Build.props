@@ -1,0 +1,46 @@
+<Project>
+
+  <PropertyGroup>
+    <!--
+      Package version is <AgoraRtcEngine_iOS pod version>.<binding revision>, e.g. 4.6.2.1 — the
+      same scheme the sibling Net.Agora.Android repository uses for its own (Maven Central) line.
+
+      This repository binds nothing but Video today. Agora ships Android and iOS on independent
+      schedules and the iOS CocoaPods pod for a release can lag Maven Central by a point version
+      (verified 2026-07-23: Android's io.agora.rtc:full-rtc-basic is at 4.6.3, the newest
+      AgoraRtcEngine_iOS pod published is 4.6.2) — build/fetch-video.sh checks this against
+      CocoaPods trunk before downloading. So the iOS and Android package versions for the same
+      product are not expected to match, any more than DatadogNet.iOS and DatadogNet.Android's do.
+
+      The fourth component belongs to this repository and advances when the binding changes while
+      the native artifact stays put.
+    -->
+    <AgoraVideoIosVersion>4.6.2</AgoraVideoIosVersion>
+    <AgoraVideoBindingRevision>1</AgoraVideoBindingRevision>
+    <VersionPrefix>$(AgoraVideoIosVersion).$(AgoraVideoBindingRevision)</VersionPrefix>
+
+    <Authors>s.bokatuk</Authors>
+    <Company>s.bokatuk</Company>
+    <Copyright>Copyright © s.bokatuk</Copyright>
+    <PackageProjectUrl>https://github.com/sbokatuk/Net.Agora.iOS</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/sbokatuk/Net.Agora.iOS</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <!--
+      MIT covers the binding code in this repository. Agora's own SDK is distributed under Agora's
+      SDK licence terms (not an OSI-approved licence with its own SPDX identifier), so — unlike
+      DatadogNet.iOS's "MIT AND Apache-2.0" — no second licence expression is added here; nothing
+      is claimed about Agora's own terms.
+    -->
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition=" '$(GITHUB_ACTIONS)' == 'true' ">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+</Project>

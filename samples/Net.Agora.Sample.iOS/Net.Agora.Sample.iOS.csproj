@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Plain .NET for iOS sample (no MAUI) that joins an Agora RTC channel directly against the raw
+    binding — AgoraRtcEngineKit, a bare UIView per AgoraRtcVideoCanvas, no cross-platform wrapper.
+    The wrapped, cross-platform version of this same flow is Net.Agora/samples/Net.Agora.Sample:
+    https://github.com/sbokatuk/Net.Agora.
+
+    Consumes the packed Net.Agora.Video.iOS package from artifacts/ (see NuGet.config), so it
+    exercises the package exactly as a consumer would.
+
+    Target frameworks follow the SDK band, like the binding project: no single .NET SDK can build
+    net8, net9 and net10 for iOS. Build the other band with -p:AgoraSdkBand=net10 from a directory
+    whose global.json selects the .NET 10 SDK.
+  -->
+  <PropertyGroup>
+    <AgoraSdkBand Condition=" '$(AgoraSdkBand)' == '' ">net9</AgoraSdkBand>
+    <TargetFrameworks Condition=" '$(AgoraSdkBand)' == 'net9' ">net8.0-ios18.0;net9.0-ios18.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(AgoraSdkBand)' == 'net10' ">net10.0-ios26.0</TargetFrameworks>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <CheckEolWorkloads>false</CheckEolWorkloads>
+
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Net.Agora.Sample.iOS</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+
+    <ApplicationId>com.sbokatuk.agora.sample.ios</ApplicationId>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+
+    <!-- Matches AgoraRtcKit's own minimum — see Directory.Build.props / Agora.Binding.props. -->
+    <SupportedOSPlatformVersion>13.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <Target Name="ValidateAgoraSdkBand" BeforeTargets="Build;Pack" Condition=" '$(TargetFrameworks)' == '' ">
+    <Error Text="AgoraSdkBand must be 'net9' or 'net10', but was '$(AgoraSdkBand)'." />
+  </Target>
+
+  <PropertyGroup>
+    <!--
+      Defaults to the version in Directory.Build.props so a plain build after "build/BuildNugets.sh"
+      works; override with -p:AgoraVideoPackageVersion=... to test a specific build.
+    -->
+    <AgoraVideoPackageVersion Condition=" '$(AgoraVideoPackageVersion)' == '' ">$(AgoraVideoIosVersion).$(AgoraVideoBindingRevision)</AgoraVideoPackageVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Exact version, in brackets — a bare version is a *minimum* to NuGet, so a build missing from
+      artifacts/ would silently resolve from nuget.org instead of failing the restore.
+    -->
+    <PackageReference Include="Net.Agora.Video.iOS" Version="[$(AgoraVideoPackageVersion)]" />
+  </ItemGroup>
+
+</Project>

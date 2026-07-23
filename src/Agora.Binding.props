@@ -1,0 +1,79 @@
+<!--
+  Everything the binding projects in this repository have in common.
+
+  Imported explicitly by each .csproj rather than picked up as a Directory.Build.props, because it
+  reads a property the project sets (AgoraPackageName) and Directory.Build.props is imported
+  before the project body, so it would never see it. That leaves each binding project as its
+  identity, its NativeReference list and its ApiDefinition.
+-->
+<Project>
+
+  <PropertyGroup>
+    <!--
+      Each .NET SDK's iOS workload supports the current target framework and the previous one: the
+      .NET 9 band builds net8.0-ios + net9.0-ios, the .NET 10 band builds net9.0-ios + net10.0-ios.
+      No single SDK can build all three, so build/BuildNugets.sh packs twice and merges the results
+      with build/merge-packages.py. AgoraSdkBand selects which pass this build is.
+
+      The platform version is pinned rather than left to the workload's default, because it ends
+      up in the lib/<tfm>/ folder name inside the package. An unpinned net8.0-ios silently becomes
+      whatever the installed workload currently defaults to, so a workload update would change the
+      packages' advertised target frameworks without a single source edit.
+    -->
+    <AgoraSdkBand Condition=" '$(AgoraSdkBand)' == '' ">net9</AgoraSdkBand>
+    <TargetFrameworks Condition=" '$(AgoraSdkBand)' == 'net9' ">net8.0-ios18.0;net9.0-ios18.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(AgoraSdkBand)' == 'net10' ">net10.0-ios26.0</TargetFrameworks>
+    <!--
+      net8.0-ios is past end of support, which the SDK reports as an error. It ships deliberately:
+      .NET 8 is still where a large share of MAUI apps are.
+    -->
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <CheckEolWorkloads>false</CheckEolWorkloads>
+
+    <!--
+      13.0: AgoraRtcKit's own minimum per its podspec / Info.plist. Matches what
+      Net.Agora.Video.iOS shipped with while still inside the Net.Agora monorepo.
+    -->
+    <SupportedOSPlatformVersion>13.0</SupportedOSPlatformVersion>
+
+    <IsBindingProject>true</IsBindingProject>
+    <!--
+      Ship the native payload as a single <Assembly>.resources.zip rather than a
+      <Assembly>.resources directory. The default is 'auto', which only compresses when a
+      framework contains symlinks; the uncompressed form puts every framework file into the
+      package at paths like
+      lib/net8.0-ios18.0/<assembly>.resources/AgoraRtcKit.xcframework/ios-arm64_x86_64-simulator/
+      AgoraRtcKit.framework/Headers/AgoraRtcEngineKit.h, which can trip NU5123 and exceed the
+      260-character limit on Windows once the global packages folder is prepended.
+    -->
+    <CompressBindingResourcePackage>true</CompressBindingResourcePackage>
+
+    <AssemblyName>Net.Agora.$(AgoraPackageName).iOS</AssemblyName>
+    <RootNamespace>Net.Agora.$(AgoraPackageName).iOS</RootNamespace>
+
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>true</ImplicitUsings>
+    <!-- CS1591: the hand-written binding does not annotate every member — see ApiDefinition.cs. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <Target Name="ValidateAgoraSdkBand" BeforeTargets="Build;Pack" Condition=" '$(TargetFrameworks)' == '' ">
+    <Error Text="AgoraSdkBand must be 'net9' or 'net10', but was '$(AgoraSdkBand)'." />
+  </Target>
+
+  <!-- Packaging -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Net.Agora.$(AgoraPackageName).iOS</PackageId>
+    <Title>.NET for iOS bindings for the native Agora $(AgoraPackageName) SDK.</Title>
+    <PackageTags>$(PackageTags);agora;SDK;MAUI;iOS;dotnet-ios;Binding</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)../build/icon.png" Pack="true" PackagePath="/" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="/" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)../LICENSE" Pack="true" PackagePath="licenses/" Visible="false" />
+  </ItemGroup>
+
+</Project>

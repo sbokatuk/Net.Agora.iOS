@@ -1,0 +1,20 @@
+# SHA-256 of each AgoraRtcEngine_iOS release's download.agora.io zip.
+#
+# Agora publishes no checksum manifest of its own alongside the SDK download, so the hash is
+# pinned here, in the repository, and fetch-video.sh refuses to use an archive that does not
+# match.
+#
+# That makes this file the trust anchor for ~90 MB of native code (AgoraRtcKit and its codec
+# dependencies) that gets linked into consumers' apps: a substituted or truncated archive fails
+# the fetch instead of being bound and published. It also makes the build reproducible, since the
+# download URL can be replaced in place without the version in the URL changing.
+#
+# To add a version, download the archive and record its hash:
+#
+#   v=4.6.2
+#   curl -fsSL -o AgoraRtcEngine_iOS-$v.zip "https://download.agora.io/sdk/release/AgoraRtcEngine_iOS-$v.zip"
+#   shasum -a 256 AgoraRtcEngine_iOS-$v.zip
+#
+# Format: <AgoraRtcEngine_iOS version> <sha256>
+
+4.6.2 0b2ed2e11ff0e95fded906ce39b7e7870fba550485069629bada6fa93f398d1d

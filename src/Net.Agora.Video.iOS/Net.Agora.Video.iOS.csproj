@@ -1,0 +1,75 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AgoraPackageName>Video</AgoraPackageName>
+    <!--
+      AgoraRtcKit and its codec dependencies are dynamic frameworks, so they cannot be embedded
+      into this assembly and linked from there — the consuming app's linker never sees them. They
+      travel beside the assembly instead; see the NativeReference block below.
+    -->
+    <NoBindingEmbedding>true</NoBindingEmbedding>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <Import Project="../Agora.Binding.props" />
+
+  <Target Name="ValidateAgoraXcframeworks" BeforeTargets="Build;Pack"
+          Condition="!Exists('$(MSBuildProjectDirectory)/lib/AgoraRtcKit.xcframework')">
+    <Error Text="lib/AgoraRtcKit.xcframework is missing. Run build/fetch-video.sh first." />
+  </Target>
+
+  <ItemGroup>
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+    <ObjcBindingCoreSource Include="StructsAndEnums.cs" />
+  </ItemGroup>
+
+  <!--
+    How the frameworks reach the consuming app.
+
+    AgoraRtcKit and its codec dependencies are all *dynamic* frameworks, so they cannot be linked
+    into this assembly: they have to be present when the app itself is linked and bundled, or the
+    build fails with an undefined-symbol error at the app's link step.
+
+    Declaring them as NativeReference here, with NoBindingEmbedding, packs them beside the assembly
+    as <name>.resources.zip once per target framework; the Apple SDK unpacks and links them in
+    whichever app references this package — directly or transitively (through the facade repo's
+    Net.Agora.Video.Maui -> Net.Agora.Video).
+
+    Fetched by build/fetch-video.sh from Agora's own SDK download (not CocoaPods — this is a
+    binding project, not a pod consumer), so they are not in git.
+  -->
+  <ItemGroup>
+    <NativeReference Include="lib/AgoraRtcKit.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+    <NativeReference Include="lib/aosl.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+    <NativeReference Include="lib/Agorafdkaac.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+    <NativeReference Include="lib/Agoraffmpeg.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+    <NativeReference Include="lib/AgoraSoundTouch.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+    <!--
+      Missing until found by actually running a consuming app on-device: AgoraRtcKit's binary
+      links @rpath/video_dec.framework/video_dec directly (confirmed with `otool -L` against both
+      slices), so dyld aborts the process at launch without it — a load-time failure, not something
+      the compiler or linker can catch, since nothing here calls into it directly. `video_enc.
+      xcframework`, the sibling one might expect to need too, is not referenced by AgoraRtcKit's
+      binary and is correctly left out.
+    -->
+    <NativeReference Include="lib/video_dec.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <Description>.NET for iOS / .NET MAUI bindings for the Agora Video (RTC) iOS SDK ("RtcBasic" subspec of AgoraRtcEngine_iOS $(AgoraVideoIosVersion)). Lets a .NET app join Agora RTC channels and publish/subscribe audio and video. Hand-written against the real headers — see ApiDefinition.cs for why, and for the bound surface.</Description>
+    <PackageTags>$(PackageTags);Video;RTC;streaming</PackageTags>
+  </PropertyGroup>
+
+</Project>

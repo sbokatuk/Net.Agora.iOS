@@ -1,0 +1,74 @@
+name: pull request
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: pr-${{ github.event.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: resolve beta version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: resolve
+        run: |
+          . ./build/pins.sh
+          version="${AGORA_VIDEO_PACKAGE_VERSION}-beta.${{ github.event.number }}.${{ github.run_number }}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Building ${version}" >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: build
+    needs: version
+    uses: ./.github/workflows/build.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+
+  publish:
+    name: publish beta to nuget.org
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    environment: nuget.org
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      - name: Authenticate to nuget.org
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to nuget.org
+        run: |
+          dotnet nuget push "artifacts/*.nupkg" \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
+            --skip-duplicate
+
+      - name: Summarise
+        run: |
+          echo "### Published \`${{ needs.version.outputs.version }}\` to nuget.org" >> "$GITHUB_STEP_SUMMARY"
+          echo "- [Net.Agora.Video.iOS](https://www.nuget.org/packages/Net.Agora.Video.iOS/${{ needs.version.outputs.version }})" >> "$GITHUB_STEP_SUMMARY"
