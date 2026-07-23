@@ -1,0 +1,71 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Which of the package's target frameworks to exercise. Overriding TargetFramework directly
+      on the command line breaks restore, so it goes through a property of our own.
+    -->
+    <AgoraDeviceTargetFramework Condition=" '$(AgoraDeviceTargetFramework)' == '' ">net9.0-ios18.0</AgoraDeviceTargetFramework>
+    <TargetFramework>$(AgoraDeviceTargetFramework)</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <CheckEolWorkloads>false</CheckEolWorkloads>
+
+    <ApplicationId>com.sbokatuk.agora.ios.devicetests</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+
+    <!-- Matches AgoraRtcKit's own minimum — see src/Agora.Binding.props. -->
+    <SupportedOSPlatformVersion>13.0</SupportedOSPlatformVersion>
+
+    <!--
+      The checks report through stdout, which the runner script streams back with `simctl launch`
+      in console-pty mode. Quietening the Mono logger keeps that stream to the test output rather
+      than runtime chatter.
+    -->
+    <MtouchExtraArgs>--setenv=MONO_LOG_LEVEL=error</MtouchExtraArgs>
+
+    <!--
+      The interpreter, explicitly. The .NET 9 iOS SDK JITs a Debug simulator build; the .NET 8 one
+      puts the runtime in aot-only mode for the same command line and then dies on the first
+      assembly it has no AOT image for. Setting it for both bands rather than only net8 keeps the
+      matrix legs comparable — a check that passes under the interpreter on one target framework
+      and under the JIT on another is not testing quite the same thing. See the Debug comment in
+      .github/scripts/run-simulator-tests.sh for why nothing AOT-shaped is lost.
+    -->
+    <UseInterpreter>true</UseInterpreter>
+  </PropertyGroup>
+
+  <!--
+    The e2e deliberately consumes the packed NuGet from ./artifacts rather than a ProjectReference,
+    so it exercises the artifact that actually gets published — the merged three-target-framework
+    package out of build/merge-packages.py, native payload and all, which a ProjectReference would
+    prove nothing about. See NuGet.config for the local feed.
+  -->
+  <PropertyGroup>
+    <AgoraVideoPackageVersion Condition=" '$(AgoraVideoPackageVersion)' == '' ">$(VersionPrefix)</AgoraVideoPackageVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Exact version, in brackets — a bare version is a *minimum* to NuGet, so a build missing from
+      artifacts/ would silently resolve from nuget.org instead of failing the restore.
+    -->
+    <PackageReference Include="Net.Agora.Video.iOS" Version="[$(AgoraVideoPackageVersion)]" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Both None (the item type) and LogicalName="Info.plist" (the metadata) are required: this is a
+      plain iOS SDK project, not MAUI, and _DetectAppManifest locates a manifest by LogicalName
+      rather than by path — see the equivalent comment in the façade repository's
+      tests/Net.Agora.DeviceTests project, where a plain unreferenced Info.plist built clean but
+      none of its keys made it into the app bundle.
+    -->
+    <None Include="Info.plist" LogicalName="Info.plist" />
+  </ItemGroup>
+
+</Project>

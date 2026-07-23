@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:Net.Agora.Sample.iOS"
+             x:Class="Net.Agora.Sample.iOS.MainPage"
+             Title="Net.Agora.Video.iOS">
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto" Padding="16" RowSpacing="12">
+
+        <VerticalStackLayout Grid.Row="0" Spacing="8">
+            <Entry x:Name="AppIdEntry" Placeholder="Agora App ID" />
+            <Entry x:Name="ChannelIdEntry" Placeholder="channel id" />
+            <Entry x:Name="TokenEntry" Placeholder="token (optional — App ID-only auth is testing-only)" />
+        </VerticalStackLayout>
+
+        <!--
+          Both views exist for the whole session: creating one on demand would mean creating a
+          native renderer mid-layout, which the SDK does not expect.
+        -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="8">
+            <local:AgoraVideoView x:Name="LocalView" Grid.Column="0" />
+            <local:AgoraVideoView x:Name="RemoteView" Grid.Column="1" />
+        </Grid>
+
+        <HorizontalStackLayout Grid.Row="2" Spacing="8" HorizontalOptions="Center">
+            <Button x:Name="JoinButton" Text="Join" Clicked="OnJoinClicked" />
+            <Button x:Name="LeaveButton" Text="Leave" Clicked="OnLeaveClicked" IsEnabled="False" />
+        </HorizontalStackLayout>
+
+        <ScrollView Grid.Row="3" x:Name="StatusScroll" HeightRequest="120">
+            <Label x:Name="StatusLabel" FontSize="12" />
+        </ScrollView>
+
+    </Grid>
+
+</ContentPage>

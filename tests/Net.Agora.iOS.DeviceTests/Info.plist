@@ -13,22 +13,19 @@
 	<array>
 		<string>arm64</string>
 	</array>
+	<!--
+	  Declared only to keep the build quiet: an iOS app with no supported orientations warns on
+	  every build. The checks are headless and never rotate.
+	-->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSCameraUsageDescription</key>
-	<string>Publishes video to the Agora channel.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Publishes audio to the Agora channel.</string>
+	<key>XSAppIconAssets</key>
+	<string></string>
 </dict>
 </plist>

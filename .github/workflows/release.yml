@@ -89,15 +89,30 @@ jobs:
           . ./build/pins.sh
           previous=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
 
+          # A curated docs/release-notes/<version>.md replaces the generated commit list when one
+          # exists. The second lookup drops the prerelease suffix, so v4.6.2.1-beta.2 reuses the
+          # notes written for 4.6.2.1 rather than silently falling back to raw commit subjects.
+          notes="docs/release-notes/${VERSION}.md"
+          [ -f "${notes}" ] || notes="docs/release-notes/${VERSION%%-*}.md"
+
           {
-            echo "## What's changed"
-            echo
-            if [ -n "${previous}" ]; then
-              git log --no-merges --pretty='- %s (%h)' "${previous}..${GITHUB_REF_NAME}"
+            if [ -f "${notes}" ]; then
+              echo "==> using curated notes from ${notes}" >&2
+              cat "${notes}"
               echo
-              echo "**Full changelog**: ${{ github.server_url }}/${{ github.repository }}/compare/${previous}...${GITHUB_REF_NAME}"
+              if [ -n "${previous}" ]; then
+                echo "**Full changelog**: ${{ github.server_url }}/${{ github.repository }}/compare/${previous}...${GITHUB_REF_NAME}"
+              fi
             else
-              echo "Initial release."
+              echo "## What's changed"
+              echo
+              if [ -n "${previous}" ]; then
+                git log --no-merges --pretty='- %s (%h)' "${previous}..${GITHUB_REF_NAME}"
+                echo
+                echo "**Full changelog**: ${{ github.server_url }}/${{ github.repository }}/compare/${previous}...${GITHUB_REF_NAME}"
+              else
+                echo "Initial release."
+              fi
             fi
             echo
             echo "## Packages"

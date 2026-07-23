@@ -21,15 +21,49 @@ public static class Packages
         TargetFrameworks.Select(tfm => new object[] { tfm });
 
     /// <summary>
-    /// The names of everything in a binding package's native payload for one target framework.
-    /// CompressBindingResourcePackage=true means this is always a &lt;assembly&gt;.resources.zip,
-    /// never a loose directory.
+    /// The xcframeworks the Video package ships: the API surface (AgoraRtcKit) plus the codec and
+    /// infrastructure frameworks its binary links against. Mirrors the NativeReference list in
+    /// Net.Agora.Video.iOS.csproj and the staging loop in build/fetch-video.sh — a name missing
+    /// from either shows up here.
     /// </summary>
+    /// <remarks>
+    /// video_dec matters most: AgoraRtcKit's binary links it directly, so a payload without it
+    /// kills every consuming app at launch — a dyld failure the compiler and linker never see.
+    /// That is how it was found in the first place; see the csproj.
+    /// </remarks>
+    public static readonly string[] ExpectedXcFrameworks =
+    [
+        "AgoraRtcKit", "aosl", "Agorafdkaac", "Agoraffmpeg", "AgoraSoundTouch", "video_dec",
+    ];
+
+    /// <summary>
+    /// Identifies the simulator slice of an xcframework from its directory name. Slice names are
+    /// checked by shape rather than pinned literally (Agora ships ios-arm64 and
+    /// ios-arm64_x86_64-simulator today, but the exact strings are upstream's to change — the
+    /// FFmpegKit repository has already watched a device slice get renamed under it).
+    /// </summary>
+    public static bool IsSimulatorSlice(string slice) =>
+        slice.Contains("simulator", StringComparison.Ordinal);
+
+    /// <summary>Whether a slice directory name denotes an iOS slice at all.</summary>
+    public static bool IsIosSlice(string slice) =>
+        slice.StartsWith("ios-", StringComparison.Ordinal);
+
+    /// <summary>
+    /// The binding's native payload entry for a target framework: the xcframeworks, zipped by the
+    /// iOS SDK into a single &lt;assembly&gt;.resources.zip beside the binding assembly.
+    /// CompressBindingResourcePackage=true in Agora.Binding.props means it is always the zip,
+    /// never a loose .resources directory — see the comment there for why.
+    /// </summary>
+    public static string ResourcesEntry(string packageId, string tfm) =>
+        $"lib/{tfm}/{packageId}.resources.zip";
+
+    /// <summary>The names of everything in a binding package's native payload for one target framework.</summary>
     public static IReadOnlyList<string> NativePayload(string packageId, string tfm)
     {
         using var package = OpenPackage(packageId);
 
-        var zipped = package.GetEntry($"lib/{tfm}/{packageId}.resources.zip");
+        var zipped = package.GetEntry(ResourcesEntry(packageId, tfm));
         if (zipped is null)
         {
             return [];
@@ -38,6 +72,29 @@ public static class Packages
         using var archive = new ZipArchive(zipped.Open());
         return archive.Entries.Select(e => e.FullName).ToList();
     }
+
+    /// <summary>Reads a package entry fully into memory so it can be seeked.</summary>
+    public static MemoryStream ReadEntry(ZipArchive package, string entryName)
+    {
+        var entry = package.GetEntry(entryName);
+        Assert.True(entry is not null, $"Package has no entry '{entryName}'.");
+
+        var buffer = new MemoryStream();
+        using (var stream = entry!.Open())
+        {
+            stream.CopyTo(buffer);
+        }
+
+        buffer.Position = 0;
+        return buffer;
+    }
+
+    /// <summary>
+    /// Opens the binding resource package for a target framework. The native payload is a zip
+    /// nested inside the .nupkg, so its contents are only reachable through a second archive.
+    /// </summary>
+    public static ZipArchive OpenNativePayload(ZipArchive package, string packageId, string tfm) =>
+        new(ReadEntry(package, ResourcesEntry(packageId, tfm)));
 
     public static string ArtifactsDirectory { get; } = ResolveArtifactsDirectory();
 
