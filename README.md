@@ -74,14 +74,50 @@ No single .NET SDK builds net8, net9 *and* net10 for iOS, so `BuildNugets.sh` pa
 installed SDK's band, then a `net10` pass from a scratch `global.json`) and merges the results —
 see `build/merge-packages.py`.
 
+## Tests
+
+**Package tests** run anywhere and inspect the packed `.nupkg` — a binding assembly and a native
+payload for every target framework, all six xcframeworks present, the payload logically identical
+across target frameworks (which is what would catch a mismatched net10 merge graft), iOS device
+and simulator slices only, and manifests consistent with the slices actually shipped:
+
+```sh
+./build/BuildNugets.sh                       # produce ./artifacts first
+dotnet test tests/Net.Agora.iOS.PackageTests
+```
+
+**Simulator smoke tests** (`tests/Net.Agora.iOS.DeviceTests`) build an app against the packed
+package and drive the raw binding on a booted simulator, which is the only way to prove the
+native frameworks actually link and load — the historical example being `video_dec`, which
+AgoraRtcKit's binary loads at launch and whose absence nothing at compile or link time can see.
+The checks assert every framework is loaded into the process, read the native SDK version, and
+round-trip the engine create → drive → destroy with an unregistered App ID; nothing touches the
+network and no credentials are involved (the [façade repo][facade]'s own device tests cover the
+join path):
+
+```sh
+./.github/scripts/run-simulator-tests.sh 4.6.2.1 net10.0-ios26.0
+```
+
+## CI
+
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| [`pr.yml`](.github/workflows/pr.yml) | pull request | Packs `Net.Agora.Video.iOS` as `<version>-beta.<pr>.<run>`, runs the package tests, builds the MAUI sample against the packed package, runs the simulator smoke tests (net8 and net10 legs in parallel), then publishes the beta to nuget.org. Forked PRs build and test but skip publishing, since they cannot read secrets. |
+| [`release.yml`](.github/workflows/release.yml) | tag `v*` | Same build and tests at the tag's version, publishes to nuget.org, then creates a GitHub release — from `docs/release-notes/<version>.md` when a curated file exists, otherwise from the commit log since the previous tag. |
+
+Both call the reusable [`build.yml`](.github/workflows/build.yml), whose pack, sample and e2e jobs
+run on macOS — iOS builds have no cross-platform path, unlike the Android bindings.
+
 ## Sample
 
-`samples/Net.Agora.Sample.iOS` is a plain .NET for iOS app — no MAUI — that joins a channel and
-publishes/renders video directly against `AgoraRtcEngineKit`: an App ID/channel/token entry,
-Join/Leave buttons, and a local + remote `UIView`. It's the same flow as
-[`Net.Agora`](https://github.com/sbokatuk/Net.Agora)'s cross-platform MAUI sample, but built
-straight against this package with no façade in between — proof `Net.Agora.Video.iOS` is
-consumable end to end, and a reference for wiring `AgoraRtcEngineKit` up by hand.
+`samples/Net.Agora.Sample.iOS` is a MAUI app (iOS only) that joins a channel and publishes/renders
+video directly against `AgoraRtcEngineKit`: an App ID/channel/token entry, Join/Leave buttons, and
+a local + remote video view backed by a hand-rolled MAUI handler (`AgoraVideoView.cs`) — which is
+exactly what a consumer skipping the cross-platform façade has to wire up, and the part the
+[façade repo][facade]'s `Net.Agora.Video.Maui` package otherwise does for you. It's the same flow
+as that repo's cross-platform MAUI sample, but built straight against this package with no façade
+in between — proof `Net.Agora.Video.iOS` is consumable end to end.
 
 It consumes the packed `Net.Agora.Video.iOS` package from `./artifacts` (see `NuGet.config`), so
 fetch and pack first:
@@ -101,3 +137,4 @@ package restores and links correctly — same reasoning as the façade repo's sa
 MIT — see [LICENSE](LICENSE). Agora's own SDK is distributed under Agora's SDK licence terms.
 
 [agora]: https://www.agora.io/en/
+[facade]: https://github.com/sbokatuk/Net.Agora
