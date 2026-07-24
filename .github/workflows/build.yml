@@ -65,11 +65,12 @@ jobs:
         id: xcframeworks
         uses: actions/cache@v4
         with:
-          path: |
-            src/Net.Agora.Video.iOS/lib
-            src/Net.Agora.Voice.iOS/lib
-            src/Net.Agora.Signaling.iOS/lib
-            src/Net.Agora.Chat.iOS/lib
+          # A glob rather than a list: there are sixteen of these directories now, twelve of
+          # them extensions, and a package whose lib/ was left out of this list restores from
+          # cache with nothing in it — which fails the build in a way that reads like a broken
+          # fetch script rather than a stale workflow. That is exactly how the extensions failed
+          # the first time they ran here.
+          path: src/*/lib
           key: agora-ios-xcframeworks-${{ hashFiles('Directory.Build.props', 'build/checksums.txt') }}
 
       - name: Fetch the Agora iOS SDKs
@@ -79,6 +80,7 @@ jobs:
           ./build/fetch-voice.sh
           ./build/fetch-signaling.sh
           ./build/fetch-chat.sh
+          ./build/fetch-extensions.sh
 
       - name: Pack
         run: |
