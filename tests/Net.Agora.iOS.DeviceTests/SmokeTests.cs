@@ -1,7 +1,11 @@
 using System.Runtime.InteropServices;
+#if AGORA_VOICE
+using Net.Agora.Voice.iOS;
+#else
 using Net.Agora.Video.iOS;
-using ObjCRuntime;
 using UIKit;
+#endif
+using ObjCRuntime;
 
 namespace Net.Agora.iOS.DeviceTests;
 
@@ -50,33 +54,44 @@ public static class SmokeTests
     /// </summary>
     private static EngineDelegate? _delegate;
 
-    /// <summary>Every check, in the order they must run.</summary>
+    /// <summary>Every check, in the order they must run. Per flavour — see the csproj.</summary>
     public static SmokeTest[] All =>
     [
         new("every native framework is linked and loadable", EveryFrameworkIsLinked),
         new("reports the native SDK version", ReportsTheSdkVersion),
         new("constructs the engine with an unregistered App ID", ConstructsTheEngine),
+#if AGORA_VOICE
+        new("enables and disables audio", EnablesAndDisablesMedia),
+        new("mutes and unmutes the local audio stream", MutesAndUnmutesLocalStreams),
+        new("drives the audio route and volume indication", DrivesAudioRouteAndVolumeIndication),
+#else
         new("enables and disables video and audio", EnablesAndDisablesMedia),
         new("mutes and unmutes the local streams", MutesAndUnmutesLocalStreams),
-        new("sets the channel profile and client role", SetsProfileAndRole),
         new("attaches and detaches a local video canvas", AttachesALocalVideoCanvas),
+#endif
+        new("sets the channel profile and client role", SetsProfileAndRole),
         new("leave without a join is reported, not thrown", LeaveWithoutAJoinIsReported),
         new("destroys the shared engine", DestroysTheEngine),
     ];
 
     private static void Report(string message) => Reporter(message);
 
-    /// <summary>Every framework the package ships. All six are dynamic — see the csproj.</summary>
+    /// <summary>Every framework the package ships. All dynamic — see the csproj.</summary>
     /// <remarks>
-    /// video_dec earns its place on this list twice over: AgoraRtcKit's binary links
+    /// For Video, video_dec earns its place on this list twice over: AgoraRtcKit's binary links
     /// <c>@rpath/video_dec.framework/video_dec</c> directly, so a package that dropped it kills
     /// the process at launch — dyld aborts before a single managed frame runs — and nothing at
     /// compile or link time in a consuming app can see it coming. That is exactly the class of
-    /// regression this check exists for.
+    /// regression this check exists for. The voice build of AgoraRtcKit links no video codec —
+    /// the check that it still loads with one fewer framework is the point of the Voice flavour.
     /// </remarks>
     private static readonly string[] Frameworks =
     [
+#if AGORA_VOICE
+        "AgoraRtcKit", "aosl", "Agorafdkaac", "Agoraffmpeg", "AgoraSoundTouch",
+#else
         "AgoraRtcKit", "aosl", "Agorafdkaac", "Agoraffmpeg", "AgoraSoundTouch", "video_dec",
+#endif
     ];
 
     [DllImport("/usr/lib/libSystem.dylib")]
@@ -192,13 +207,15 @@ public static class SmokeTests
 
     private static void EnablesAndDisablesMedia()
     {
-        // None of these needs camera or microphone permission — enabling the video module is not
+        // None of these needs camera or microphone permission — enabling a module is not
         // capturing — so zero is the only acceptable answer. StartPreview is deliberately not
-        // called: it is the first call that touches the camera, which on a headless simulator run
-        // would raise a TCC permission prompt nobody is there to answer.
+        // called in the Video flavour: it is the first call that touches the camera, which on a
+        // headless simulator run would raise a TCC permission prompt nobody is there to answer.
+#if !AGORA_VOICE
         AssertZero(Engine.EnableVideo(), "enableVideo");
         AssertZero(Engine.DisableVideo(), "disableVideo");
         AssertZero(Engine.EnableVideo(), "enableVideo (again)");
+#endif
         AssertZero(Engine.EnableAudio(), "enableAudio");
         AssertZero(Engine.DisableAudio(), "disableAudio");
         AssertZero(Engine.EnableAudio(), "enableAudio (again)");
@@ -208,9 +225,34 @@ public static class SmokeTests
     {
         AssertZero(Engine.MuteLocalAudioStream(true), "muteLocalAudioStream(true)");
         AssertZero(Engine.MuteLocalAudioStream(false), "muteLocalAudioStream(false)");
+#if !AGORA_VOICE
         AssertZero(Engine.MuteLocalVideoStream(true), "muteLocalVideoStream(true)");
         AssertZero(Engine.MuteLocalVideoStream(false), "muteLocalVideoStream(false)");
+#endif
     }
+
+#if AGORA_VOICE
+    private static void DrivesAudioRouteAndVolumeIndication()
+    {
+        // The audio-route setters and the volume-indication cadence are the Voice binding's own
+        // additions over the shared join/mute surface, so this flavour is where they are proven
+        // to cross the bridge. The default-route and volume-indication calls are local engine
+        // state and must answer zero.
+        // No disabling counterpart is exercised: the header documents interval <= 0 as "disable",
+        // but the 4.6.2 engine answers -2 (invalid argument) to it — observed on the first run of
+        // this suite — so the claim is the SDK's to sort out, not one to assert either way.
+        AssertZero(Engine.SetDefaultAudioRouteToSpeakerphone(true), "setDefaultAudioRouteToSpeakerphone(true)");
+        AssertZero(Engine.EnableAudioVolumeIndication(200, 3, reportVad: false), "enableAudioVolumeIndication");
+
+        // The live override is different: on a simulator there is no speaker/earpiece hardware to
+        // route between before an audio session starts, and the SDK answers -3 (not ready) — a
+        // simulator artifact, observed on the first run of this suite, not a binding defect. Same
+        // treatment as LeaveWithoutAJoinIsReported: the value is the SDK's business, what matters
+        // is that the call crosses the bridge and comes back as a code rather than a crash.
+        var code = Engine.SetEnableSpeakerphone(true);
+        Report($"setEnableSpeakerphone(true) returned {code}");
+    }
+#endif
 
     private static void SetsProfileAndRole()
     {
@@ -219,6 +261,7 @@ public static class SmokeTests
         AssertZero(Engine.SetClientRole(AgoraClientRole.Audience), "setClientRole(audience)");
     }
 
+#if !AGORA_VOICE
     private static void AttachesALocalVideoCanvas()
     {
         // SetupLocalVideo adds the SDK's renderer as a subview of whatever UIView is passed —
@@ -231,6 +274,7 @@ public static class SmokeTests
             "setupLocalVideo");
         AssertZero(Engine.SetupLocalVideo(null), "setupLocalVideo(nil)");
     }
+#endif
 
     private static void LeaveWithoutAJoinIsReported()
     {

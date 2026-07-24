@@ -61,12 +61,16 @@ jobs:
         id: xcframeworks
         uses: actions/cache@v4
         with:
-          path: src/Net.Agora.Video.iOS/lib
-          key: agora-video-ios-xcframeworks-${{ hashFiles('Directory.Build.props', 'build/checksums.txt') }}
+          path: |
+            src/Net.Agora.Video.iOS/lib
+            src/Net.Agora.Voice.iOS/lib
+          key: agora-ios-xcframeworks-${{ hashFiles('Directory.Build.props', 'build/checksums.txt') }}
 
-      - name: Fetch the Agora Video iOS SDK
+      - name: Fetch the Agora iOS SDKs
         if: steps.xcframeworks.outputs.cache-hit != 'true'
-        run: ./build/fetch-video.sh
+        run: |
+          ./build/fetch-video.sh
+          ./build/fetch-voice.sh
 
       - name: Pack
         run: ./build/BuildNugets.sh "${{ inputs.version }}"
@@ -154,15 +158,18 @@ jobs:
             -p:AgoraVideoPackageVersion="${{ inputs.version }}"
 
   e2e:
-    name: simulator smoke test (${{ matrix.target-framework }})
+    name: simulator smoke test (${{ matrix.package }}, ${{ matrix.target-framework }})
     timeout-minutes: 45
     needs: pack
     runs-on: macos-15
     strategy:
-      # fail-fast off: when one target framework breaks it is worth knowing whether the other did
-      # too, since "net8 only" and "both" point at very different causes.
+      # fail-fast off: when one leg breaks it is worth knowing whether the others did too, since
+      # "net8 only", "Voice only" and "all of them" point at very different causes.
       fail-fast: false
       matrix:
+        # One leg per package: both ship a framework named AgoraRtcKit, so a single device test
+        # app holds exactly one of them — see tests/Net.Agora.iOS.DeviceTests.
+        package: [Video, Voice]
         target-framework: ${{ fromJSON(inputs.e2e-target-frameworks) }}
     steps:
       - uses: actions/checkout@v4
@@ -194,13 +201,13 @@ jobs:
           path: artifacts
 
       - name: Run smoke tests on simulator
-        run: ./.github/scripts/run-simulator-tests.sh "${{ inputs.version }}" "${{ matrix.target-framework }}"
+        run: ./.github/scripts/run-simulator-tests.sh "${{ inputs.version }}" "${{ matrix.target-framework }}" "${{ matrix.package }}"
 
       - name: Upload simulator logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: simulator-test-logs-${{ matrix.target-framework }}
+          name: simulator-test-logs-${{ matrix.package }}-${{ matrix.target-framework }}
           path: simulator-tests.log
           if-no-files-found: ignore
           retention-days: 7

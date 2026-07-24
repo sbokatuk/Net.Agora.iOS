@@ -6,6 +6,31 @@ namespace Net.Agora.iOS.PackageTests;
 public static class Packages
 {
     public const string Video = "Net.Agora.Video.iOS";
+    public const string Voice = "Net.Agora.Voice.iOS";
+
+    /// <summary>
+    /// Every package build/packages.tsv lists, with the xcframeworks it ships: the API surface
+    /// (AgoraRtcKit) plus the codec and infrastructure frameworks its binary links against.
+    /// Mirrors each project's NativeReference list and its fetch script's staging loop — a name
+    /// missing from either shows up here. Pinned rather than parsed from the .tsv: a package
+    /// silently dropped from the .tsv (and so from the pack) is a regression these tests should
+    /// catch, not adapt to.
+    /// </summary>
+    /// <remarks>
+    /// video_dec matters most: the *video* build of AgoraRtcKit links it directly, so a Video
+    /// payload without it kills every consuming app at launch — a dyld failure the compiler and
+    /// linker never see. That is how it was found in the first place; see the csproj. The voice
+    /// build of AgoraRtcKit links no video codec at all, which is exactly what Voice pays for:
+    /// the list difference below is the size difference consumers pick the package for.
+    /// </remarks>
+    public static readonly (string Id, string[] XcFrameworks)[] All =
+    [
+        (Video, ["AgoraRtcKit", "aosl", "Agorafdkaac", "Agoraffmpeg", "AgoraSoundTouch", "video_dec"]),
+        (Voice, ["AgoraRtcKit", "aosl", "Agorafdkaac", "Agoraffmpeg", "AgoraSoundTouch"]),
+    ];
+
+    public static string[] XcFrameworksOf(string packageId) =>
+        All.Single(p => p.Id == packageId).XcFrameworks;
 
     /// <summary>
     /// Target frameworks every package here must carry, one per SDK band pass. Pinned rather than
@@ -20,21 +45,13 @@ public static class Packages
     public static IEnumerable<object[]> Frameworks =>
         TargetFrameworks.Select(tfm => new object[] { tfm });
 
-    /// <summary>
-    /// The xcframeworks the Video package ships: the API surface (AgoraRtcKit) plus the codec and
-    /// infrastructure frameworks its binary links against. Mirrors the NativeReference list in
-    /// Net.Agora.Video.iOS.csproj and the staging loop in build/fetch-video.sh — a name missing
-    /// from either shows up here.
-    /// </summary>
-    /// <remarks>
-    /// video_dec matters most: AgoraRtcKit's binary links it directly, so a payload without it
-    /// kills every consuming app at launch — a dyld failure the compiler and linker never see.
-    /// That is how it was found in the first place; see the csproj.
-    /// </remarks>
-    public static readonly string[] ExpectedXcFrameworks =
-    [
-        "AgoraRtcKit", "aosl", "Agorafdkaac", "Agoraffmpeg", "AgoraSoundTouch", "video_dec",
-    ];
+    /// <summary>Every package id — the axis of the per-package facts.</summary>
+    public static IEnumerable<object[]> PackageIds =>
+        All.Select(p => new object[] { p.Id });
+
+    /// <summary>Every (package, target framework) pair — the axis most tests run over.</summary>
+    public static IEnumerable<object[]> PackageFrameworks =>
+        All.SelectMany(p => TargetFrameworks.Select(tfm => new object[] { p.Id, tfm }));
 
     /// <summary>
     /// Identifies the simulator slice of an xcframework from its directory name. Slice names are

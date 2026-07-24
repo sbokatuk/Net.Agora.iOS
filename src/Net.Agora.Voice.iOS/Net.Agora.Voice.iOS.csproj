@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AgoraPackageName>Voice</AgoraPackageName>
+    <!--
+      AgoraRtcKit and its codec dependencies are dynamic frameworks, so they cannot be embedded
+      into this assembly and linked from there — the consuming app's linker never sees them. They
+      travel beside the assembly instead; see the NativeReference block below.
+    -->
+    <NoBindingEmbedding>true</NoBindingEmbedding>
+    <Nullable>enable</Nullable>
+    <VersionPrefix>$(AgoraVoiceIosVersion).$(AgoraVoiceBindingRevision)</VersionPrefix>
+  </PropertyGroup>
+
+  <Import Project="../Agora.Binding.props" />
+
+  <Target Name="ValidateAgoraXcframeworks" BeforeTargets="Build;Pack"
+          Condition="!Exists('$(MSBuildProjectDirectory)/lib/AgoraRtcKit.xcframework')">
+    <Error Text="lib/AgoraRtcKit.xcframework is missing. Run build/fetch-voice.sh first." />
+  </Target>
+
+  <ItemGroup>
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+    <ObjcBindingCoreSource Include="StructsAndEnums.cs" />
+  </ItemGroup>
+
+  <!--
+    How the frameworks reach the consuming app — same mechanics as Net.Agora.Video.iOS: dynamic
+    frameworks packed beside the assembly as <name>.resources.zip, unpacked and linked by the
+    Apple SDK in whichever app references this package.
+
+    The voice build of AgoraRtcKit links exactly these four dependencies (every @rpath entry
+    `otool -L` reports, confirmed against the device and simulator slices) — notably no video_dec,
+    the load-time dependency the Video package has to carry. Fetched by build/fetch-voice.sh from
+    Agora's own SDK download, so they are not in git.
+
+    This package and Net.Agora.Video.iOS are mutually exclusive within one app: both ship a
+    framework named AgoraRtcKit, so referencing both collides at bundle time. That mirrors Agora's
+    own pods, where an app depends on AgoraAudio_iOS or AgoraRtcEngine_iOS, never both.
+  -->
+  <ItemGroup>
+    <NativeReference Include="lib/AgoraRtcKit.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+    <NativeReference Include="lib/aosl.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+    <NativeReference Include="lib/Agorafdkaac.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+    <NativeReference Include="lib/Agoraffmpeg.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+    <NativeReference Include="lib/AgoraSoundTouch.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <Description>.NET for iOS / .NET MAUI bindings for the Agora Voice iOS SDK ("RtcBasic" subspec of AgoraAudio_iOS $(AgoraVoiceIosVersion)). Lets a .NET app join Agora RTC channels and publish/subscribe audio, without carrying the video codecs. Use Net.Agora.Video.iOS instead if the app ever shows or sends video. Hand-written against the real headers — see ApiDefinition.cs for why, and for the bound surface.</Description>
+    <PackageTags>$(PackageTags);Voice;RTC;audio;streaming</PackageTags>
+  </PropertyGroup>
+
+</Project>
