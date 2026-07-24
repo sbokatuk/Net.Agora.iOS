@@ -8,6 +8,7 @@ public static class Packages
     public const string Video = "Net.Agora.Video.iOS";
     public const string Voice = "Net.Agora.Voice.iOS";
     public const string Signaling = "Net.Agora.Signaling.iOS";
+    public const string Chat = "Net.Agora.Chat.iOS";
 
     /// <summary>
     /// Every package build/packages.tsv lists, with the xcframeworks it ships: the API surface
@@ -31,6 +32,9 @@ public static class Packages
         // Signaling is a smaller product: two frameworks, and the fetch script strips the xros
         // slices Agora ships only for this SDK.
         (Signaling, ["AgoraRtmKit", "aosl"], 4_000_000),
+        // Chat is smaller still, and the only product whose aosl comes from a second archive
+        // (AgoraInfra_iOS) rather than from the SDK zip itself — see build/fetch-chat.sh.
+        (Chat, ["AgoraChat", "aosl"], 4_000_000),
     ];
 
     public static string[] XcFrameworksOf(string packageId) =>
@@ -38,6 +42,42 @@ public static class Packages
 
     public static long MinPayloadBytesOf(string packageId) =>
         All.Single(p => p.Id == packageId).MinPayloadBytes;
+
+    /// <summary>
+    /// The optional RTC feature extensions, with the xcframework(s) each must carry. Deliberately
+    /// a separate table from <see cref="All"/>: these packages bind nothing (their ApiDefinition.cs
+    /// files are empty on purpose — see src/Agora.Extension.md), so the payload-size floors that
+    /// exist to catch a truncated SDK download would be beside the point. What matters is that the
+    /// framework named here is the one that actually shipped, since the mapping from a package's
+    /// name to Agora's framework name is not derivable and lives in build/fetch-extensions.sh.
+    /// </summary>
+    public static readonly (string Id, string[] XcFrameworks)[] Extensions =
+    [
+        ("Net.Agora.Extensions.Ains.iOS", ["AgoraAiNoiseSuppressionExtension"]),
+        ("Net.Agora.Extensions.Aiaec.iOS", ["AgoraAiEchoCancellationExtension"]),
+        ("Net.Agora.Extensions.AudioBeauty.iOS", ["AgoraAudioBeautyExtension"]),
+        ("Net.Agora.Extensions.SpatialAudio.iOS", ["AgoraSpatialAudioExtension"]),
+        ("Net.Agora.Extensions.VirtualBackground.iOS", ["AgoraVideoSegmentationExtension"]),
+        ("Net.Agora.Extensions.ContentInspect.iOS", ["AgoraContentInspectExtension"]),
+        ("Net.Agora.Extensions.ClearVision.iOS", ["AgoraClearVisionExtension"]),
+        ("Net.Agora.Extensions.FaceCapture.iOS", ["AgoraFaceCaptureExtension"]),
+        ("Net.Agora.Extensions.FaceDetection.iOS", ["AgoraFaceDetectionExtension"]),
+        ("Net.Agora.Extensions.VideoQualityAnalyzer.iOS", ["AgoraVideoQualityAnalyzerExtension"]),
+        // The only two-framework extension: the encoder plugin and the codec it wraps.
+        ("Net.Agora.Extensions.VideoEncoder.iOS", ["AgoraVideoEncoderExtension", "video_enc"]),
+        ("Net.Agora.Extensions.Av1Encoder.iOS", ["AgoraVideoAv1EncoderExtension"]),
+    ];
+
+    /// <summary>Every (extension package, target framework) pair.</summary>
+    public static IEnumerable<object[]> ExtensionFrameworks =>
+        Extensions.SelectMany(e => TargetFrameworks.Select(tfm => new object[] { e.Id, tfm }));
+
+    /// <summary>Every extension package id.</summary>
+    public static IEnumerable<object[]> ExtensionIds =>
+        Extensions.Select(e => new object[] { e.Id });
+
+    public static string[] ExtensionXcFrameworksOf(string packageId) =>
+        Extensions.Single(e => e.Id == packageId).XcFrameworks;
 
     /// <summary>
     /// Target frameworks every package here must carry, one per SDK band pass. Pinned rather than

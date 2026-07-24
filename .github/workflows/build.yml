@@ -69,6 +69,7 @@ jobs:
             src/Net.Agora.Video.iOS/lib
             src/Net.Agora.Voice.iOS/lib
             src/Net.Agora.Signaling.iOS/lib
+            src/Net.Agora.Chat.iOS/lib
           key: agora-ios-xcframeworks-${{ hashFiles('Directory.Build.props', 'build/checksums.txt') }}
 
       - name: Fetch the Agora iOS SDKs
@@ -77,6 +78,7 @@ jobs:
           ./build/fetch-video.sh
           ./build/fetch-voice.sh
           ./build/fetch-signaling.sh
+          ./build/fetch-chat.sh
 
       - name: Pack
         run: |

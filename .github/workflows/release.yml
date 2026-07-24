@@ -90,13 +90,15 @@ jobs:
             echo
             echo "## Packages"
             echo
-            echo "Bound against AgoraRtcEngine_iOS \`${AGORA_VIDEO_IOS_VERSION}\`, AgoraAudio_iOS \`${AGORA_VOICE_IOS_VERSION}\` and AgoraRtm_iOS \`${AGORA_SIGNALING_IOS_VERSION}\` (CocoaPods trunk). Each package publishes at its own version line; a row whose version did not move since the previous train was skipped by the push, not republished."
+            echo "Bound against AgoraRtcEngine_iOS \`${AGORA_VIDEO_IOS_VERSION}\`, AgoraAudio_iOS \`${AGORA_VOICE_IOS_VERSION}\`, AgoraRtm_iOS \`${AGORA_SIGNALING_IOS_VERSION}\` and Agora_Chat_iOS \`${AGORA_CHAT_IOS_VERSION}\` (CocoaPods trunk). Each package publishes at its own version line; a row whose version did not move since the previous train was skipped by the push, not republished."
             echo
             echo "| Package | NuGet |"
             echo "| --- | --- |"
             echo "| \`Net.Agora.Video.iOS\` | [${AGORA_VIDEO_PACKAGE_VERSION}](https://www.nuget.org/packages/Net.Agora.Video.iOS/${AGORA_VIDEO_PACKAGE_VERSION}) |"
             echo "| \`Net.Agora.Voice.iOS\` | [${AGORA_VOICE_PACKAGE_VERSION}](https://www.nuget.org/packages/Net.Agora.Voice.iOS/${AGORA_VOICE_PACKAGE_VERSION}) |"
             echo "| \`Net.Agora.Signaling.iOS\` | [${AGORA_SIGNALING_PACKAGE_VERSION}](https://www.nuget.org/packages/Net.Agora.Signaling.iOS/${AGORA_SIGNALING_PACKAGE_VERSION}) |"
+            echo "| \`Net.Agora.Chat.iOS\` | [${AGORA_CHAT_PACKAGE_VERSION}](https://www.nuget.org/packages/Net.Agora.Chat.iOS/${AGORA_CHAT_PACKAGE_VERSION}) |"
+            echo "| \`Net.Agora.Extensions.*.iOS\` (12) | [${AGORA_VIDEO_PACKAGE_VERSION}](https://www.nuget.org/packages?q=Net.Agora.Extensions) |"
           } > release-notes.md
 
           cat release-notes.md >> "$GITHUB_STEP_SUMMARY"

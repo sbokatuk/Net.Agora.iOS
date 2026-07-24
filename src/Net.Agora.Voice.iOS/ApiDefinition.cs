@@ -105,8 +105,37 @@ namespace Net.Agora.Voice.iOS {
 		// - (int)enableAudioVolumeIndication:smooth:reportVad: — interval in ms; smooth is the
 		// smoothing factor (the header recommends 3). The header claims interval <= 0 disables,
 		// but the 4.6.2 engine answers -2 (invalid argument) to 0 — don't rely on it.
+		// - (int)enableAudioVolumeIndication:smooth:reportVad: — interval in ms; smooth is the
+		// smoothing factor (the header recommends 3). The header claims interval <= 0 disables,
+		// but the 4.6.2 engine answers -2 (invalid argument) to 0 — don't rely on it.
 		[Export ("enableAudioVolumeIndication:smooth:reportVad:")]
 		nint EnableAudioVolumeIndication (nint interval, nint smooth, bool reportVad);
+
+		// ------------------------------------------------------------------------------------
+		// Extension controls
+		// ------------------------------------------------------------------------------------
+		// These switches all live on the engine and are therefore always callable — but each one
+		// only *works* when the matching extension framework is in the app bundle, which is what
+		// the Net.Agora.Extensions.*.iOS packages carry. Without it the engine answers a failure
+		// code from a call that compiled and linked perfectly; see src/Agora.Extension.md.
+
+		// - (int)setAINSMode:mode: — the AI noise suppressor
+		// (Net.Agora.Extensions.Ains.iOS).
+		[Export ("setAINSMode:mode:")]
+		nint SetAinsMode (bool enabled, AgoraAinsMode mode);
+
+		// - (int)setVoiceBeautifierPreset: and - (int)setAudioEffectPreset: — the voice changers
+		// and room reverbs (Net.Agora.Extensions.AudioBeauty.iOS). The two overwrite each other;
+		// AgoraRtcEngineKit.h spells out the interplay.
+		[Export ("setVoiceBeautifierPreset:")]
+		nint SetVoiceBeautifierPreset (AgoraVoiceBeautifierPreset preset);
+
+		[Export ("setAudioEffectPreset:")]
+		nint SetAudioEffectPreset (AgoraAudioEffectPreset preset);
+
+		// The video-only filters (virtual background, the ClearVision image-quality options, face
+		// detection) are deliberately absent here: this is the voice build of AgoraRtcKit, which
+		// has no video pipeline for them to act on. They are bound in Net.Agora.Video.iOS.
 	}
 
 	// AgoraRtcEngineDelegate — AgoraRtcEngineDelegate.h. Every method there is @optional; scoped

@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AgoraPackageName>Chat</AgoraPackageName>
+    <!--
+      AgoraChat and aosl are dynamic frameworks, so they cannot be embedded into this assembly and
+      linked from there — the consuming app's linker never sees them. They travel beside the
+      assembly instead; see the NativeReference block below.
+    -->
+    <NoBindingEmbedding>true</NoBindingEmbedding>
+    <Nullable>enable</Nullable>
+    <VersionPrefix>$(AgoraChatIosVersion).$(AgoraChatBindingRevision)</VersionPrefix>
+  </PropertyGroup>
+
+  <Import Project="../Agora.Binding.props" />
+
+  <Target Name="ValidateAgoraXcframeworks" BeforeTargets="Build;Pack"
+          Condition="!Exists('$(MSBuildProjectDirectory)/lib/AgoraChat.xcframework')">
+    <Error Text="lib/AgoraChat.xcframework is missing. Run build/fetch-chat.sh first." />
+  </Target>
+
+  <ItemGroup>
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+    <ObjcBindingCoreSource Include="StructsAndEnums.cs" />
+  </ItemGroup>
+
+  <!--
+    How the frameworks reach the consuming app — same mechanics as the RTC and Signaling bindings:
+    dynamic frameworks packed beside the assembly as <name>.resources.zip, unpacked and linked by
+    the Apple SDK in whichever app references this package.
+
+    AgoraChat links exactly one @rpath dependency, aosl (confirmed with `otool -L`). Unlike the
+    RTC pods it does not bundle aosl itself — it comes from the separate AgoraInfra_iOS archive,
+    which build/fetch-chat.sh downloads alongside the SDK.
+
+    This package coexists with any of the RTC or Signaling packages in one app — different
+    framework names, different classes. (Those also ship an aosl.xcframework, but it is the same
+    infra library and the app bundle carries a single copy.)
+  -->
+  <ItemGroup>
+    <NativeReference Include="lib/AgoraChat.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+    <NativeReference Include="lib/aosl.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <Description>.NET for iOS / .NET MAUI bindings for the Agora Chat (IM) iOS SDK (Agora_Chat_iOS $(AgoraChatIosVersion)). Lets a .NET app log in to Agora Chat, send and receive messages and work with conversations. Hand-written against the real headers — see ApiDefinition.cs for why, and for the bound surface.</Description>
+    <PackageTags>$(PackageTags);Chat;IM;messaging;realtime</PackageTags>
+  </PropertyGroup>
+
+</Project>

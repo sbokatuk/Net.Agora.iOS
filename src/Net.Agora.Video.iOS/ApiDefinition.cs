@@ -142,8 +142,114 @@ namespace Net.Agora.Video.iOS {
 		// - (int)enableAudioVolumeIndication:smooth:reportVad: — interval in ms; smooth is the
 		// smoothing factor (the header recommends 3). The header claims interval <= 0 disables,
 		// but the 4.6.2 engine answers -2 (invalid argument) to 0 — don't rely on it.
+		// - (int)enableAudioVolumeIndication:smooth:reportVad: — interval in ms; smooth is the
+		// smoothing factor (the header recommends 3). The header claims interval <= 0 disables,
+		// but the 4.6.2 engine answers -2 (invalid argument) to 0 — don't rely on it.
 		[Export ("enableAudioVolumeIndication:smooth:reportVad:")]
 		nint EnableAudioVolumeIndication (nint interval, nint smooth, bool reportVad);
+
+		// ------------------------------------------------------------------------------------
+		// Extension controls
+		// ------------------------------------------------------------------------------------
+		// These switches all live on the engine and are therefore always callable — but each one
+		// only *works* when the matching extension framework is in the app bundle, which is what
+		// the Net.Agora.Extensions.*.iOS packages carry. Without it the engine answers a failure
+		// code from a call that compiled and linked perfectly; see src/Agora.Extension.md.
+
+		// - (int)setAINSMode:mode: — the AI noise suppressor
+		// (Net.Agora.Extensions.Ains.iOS). Works in the Voice build too.
+		[Export ("setAINSMode:mode:")]
+		nint SetAinsMode (bool enabled, AgoraAinsMode mode);
+
+		// - (int)setVoiceBeautifierPreset: and - (int)setAudioEffectPreset: — the voice changers
+		// and room reverbs (Net.Agora.Extensions.AudioBeauty.iOS). The two overwrite each other;
+		// AgoraRtcEngineKit.h spells out the interplay.
+		[Export ("setVoiceBeautifierPreset:")]
+		nint SetVoiceBeautifierPreset (AgoraVoiceBeautifierPreset preset);
+
+		[Export ("setAudioEffectPreset:")]
+		nint SetAudioEffectPreset (AgoraAudioEffectPreset preset);
+
+		// - (int)enableVirtualBackground:backData:segData: — background blur or replacement
+		// (Net.Agora.Extensions.VirtualBackground.iOS). segData is optional; passing null takes
+		// the engine's own segmentation defaults.
+		[Export ("enableVirtualBackground:backData:segData:")]
+		nint EnableVirtualBackground (bool enable, [NullAllowed] AgoraVirtualBackgroundSource backData, [NullAllowed] AgoraSegmentationProperty segData);
+
+		// The image-quality filters (Net.Agora.Extensions.ClearVision.iOS). Each takes its own
+		// options object; passing null takes the engine's defaults. AgoraRtcEngineKit.h notes that
+		// low-light enhancement wants the denoiser enabled first.
+		[Export ("setVideoDenoiserOptions:options:")]
+		nint SetVideoDenoiserOptions (bool enable, [NullAllowed] AgoraVideoDenoiserOptions options);
+
+		[Export ("setLowlightEnhanceOptions:options:")]
+		nint SetLowlightEnhanceOptions (bool enable, [NullAllowed] AgoraLowlightEnhanceOptions options);
+
+		[Export ("setColorEnhanceOptions:options:")]
+		nint SetColorEnhanceOptions (bool enable, [NullAllowed] AgoraColorEnhanceOptions options);
+
+		// - (int)enableFaceDetection: — local face detection
+		// (Net.Agora.Extensions.FaceDetection.iOS).
+		[Export ("enableFaceDetection:")]
+		nint EnableFaceDetection (bool enable);
+	}
+
+	// AgoraVirtualBackgroundSource — AgoraObjects.h. What to put behind the segmented person: a
+	// solid Color, an Img (a file path in Source), a Blur of the real background, or a Video.
+	[BaseType (typeof (NSObject))]
+	public interface AgoraVirtualBackgroundSource {
+		[Export ("backgroundSourceType", ArgumentSemantic.Assign)]
+		AgoraVirtualBackgroundSourceType BackgroundSourceType { get; set; }
+
+		// 0xRRGGBB, used when BackgroundSourceType is Color.
+		[Export ("color")]
+		nuint Color { get; set; }
+
+		// A local file path, used when BackgroundSourceType is Img or Video.
+		[NullAllowed]
+		[Export ("source", ArgumentSemantic.Copy)]
+		string Source { get; set; }
+
+		[Export ("blurDegree", ArgumentSemantic.Assign)]
+		AgoraBlurDegree BlurDegree { get; set; }
+	}
+
+	// AgoraSegmentationProperty — AgoraObjects.h. The segmentation model and its greenscreen
+	// threshold. Bound as an opaque type: the defaults are what every caller here uses, and it
+	// exists in this binding only so EnableVirtualBackground can take its documented nil.
+	[BaseType (typeof (NSObject))]
+	public interface AgoraSegmentationProperty {
+	}
+
+	// AgoraVideoDenoiserOptions — AgoraObjects.h.
+	[BaseType (typeof (NSObject))]
+	public interface AgoraVideoDenoiserOptions {
+		[Export ("mode", ArgumentSemantic.Assign)]
+		AgoraVideoDenoiserMode Mode { get; set; }
+
+		[Export ("level", ArgumentSemantic.Assign)]
+		AgoraVideoDenoiserLevel Level { get; set; }
+	}
+
+	// AgoraLowlightEnhanceOptions — AgoraObjects.h.
+	[BaseType (typeof (NSObject))]
+	public interface AgoraLowlightEnhanceOptions {
+		[Export ("mode", ArgumentSemantic.Assign)]
+		AgoraLowlightEnhanceMode Mode { get; set; }
+
+		[Export ("level", ArgumentSemantic.Assign)]
+		AgoraLowlightEnhanceLevel Level { get; set; }
+	}
+
+	// AgoraColorEnhanceOptions — AgoraObjects.h. Both are 0..1 floats; skinProtectLevel holds back
+	// the enhancement on skin tones, which over-saturate first.
+	[BaseType (typeof (NSObject))]
+	public interface AgoraColorEnhanceOptions {
+		[Export ("strengthLevel")]
+		float StrengthLevel { get; set; }
+
+		[Export ("skinProtectLevel")]
+		float SkinProtectLevel { get; set; }
 	}
 
 	// AgoraRtcEngineDelegate — AgoraRtcEngineDelegate.h. Every method there is @optional; scoped

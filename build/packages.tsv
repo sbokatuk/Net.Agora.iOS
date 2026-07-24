@@ -13,3 +13,19 @@
 Video	-
 Voice	-
 Signaling	-
+Chat	-
+# The optional RTC feature extensions: native payload only, no managed API, no dependency on
+# either RTC package. Their frameworks come out of the AgoraRtcEngine_iOS archive itself — see
+# build/fetch-extensions.sh, which reads these rows.
+Extensions.Ains	-
+Extensions.Aiaec	-
+Extensions.AudioBeauty	-
+Extensions.SpatialAudio	-
+Extensions.VirtualBackground	-
+Extensions.ContentInspect	-
+Extensions.ClearVision	-
+Extensions.FaceCapture	-
+Extensions.FaceDetection	-
+Extensions.VideoQualityAnalyzer	-
+Extensions.VideoEncoder	-
+Extensions.Av1Encoder	-
