@@ -131,12 +131,19 @@ run on macOS — iOS builds have no cross-platform path, unlike the Android bind
 ## Sample
 
 `samples/Net.Agora.Sample.iOS` is a MAUI app (iOS only) that joins a channel and publishes/renders
-video directly against `AgoraRtcEngineKit`: an App ID/channel/token entry, Join/Leave buttons, and
-a local + remote video view backed by a hand-rolled MAUI handler (`AgoraVideoView.cs`) — which is
-exactly what a consumer skipping the cross-platform façade has to wire up, and the part the
-[façade repo][facade]'s `Net.Agora.Video.Maui` package otherwise does for you. It's the same flow
-as that repo's cross-platform MAUI sample, but built straight against this package with no façade
-in between — proof `Net.Agora.Video.iOS` is consumable end to end.
+video directly against `AgoraRtcEngineKit`: an App ID/channel/token entry, Join/Leave/Flip/Mute
+buttons, and a local + remote video view backed by a hand-rolled MAUI handler
+(`AgoraVideoView.cs`) — which is exactly what a consumer skipping the cross-platform façade has
+to wire up, and the part the [façade repo][facade]'s `Net.Agora.Video.Maui` package otherwise
+does for you. Its **Try Signaling** button drives `AgoraRtmClientKit` from the same app — the
+coexistence of the two products, proven at bundle time just by building.
+
+`samples/Net.Agora.Sample.Voice.iOS` is the audio-only sibling against `Net.Agora.Voice.iOS`:
+join, mute, speakerphone routing and the who-is-speaking volume reports, with no camera
+permission anywhere.
+
+Both are the same flows as the façade repo's cross-platform MAUI samples, built straight against
+these packages with no façade in between — proof they are consumable end to end.
 
 It consumes the packed `Net.Agora.Video.iOS` package from `./artifacts` (see `NuGet.config`), so
 fetch and pack first:

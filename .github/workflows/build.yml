@@ -161,14 +161,24 @@ jobs:
       # FFmpegKit.iOS's sample job, whose first attempt at a Release build was killed after 48
       # minutes. Both target frameworks the .NET 9 band covers are built, since at this cost it is
       # free; the sample deliberately does not target net10 — the device tests cover that.
-      - name: Build the sample against the packed package
+      - name: Build the samples against the packed packages
         run: |
+          # Exact versions come from the pins plus the optional prerelease suffix — see
+          # build/pins.sh, and every package a sample references needs its own: the Video sample
+          # also consumes the Signaling package (the coexistence proof), whose unsuffixed default
+          # would not exist on a prerelease run. The Voice sample is its own app, since the two
+          # RTC packages cannot share one.
           . ./build/pins.sh
-          version="${AGORA_VIDEO_PACKAGE_VERSION}${{ inputs.suffix != '' && format('-{0}', inputs.suffix) || '' }}"
+          s="${{ inputs.suffix != '' && format('-{0}', inputs.suffix) || '' }}"
           dotnet build samples/Net.Agora.Sample.iOS \
             --configuration Debug \
             -p:RuntimeIdentifier=iossimulator-arm64 \
-            -p:AgoraVideoPackageVersion="${version}"
+            -p:AgoraVideoPackageVersion="${AGORA_VIDEO_PACKAGE_VERSION}${s}" \
+            -p:AgoraSignalingPackageVersion="${AGORA_SIGNALING_PACKAGE_VERSION}${s}"
+          dotnet build samples/Net.Agora.Sample.Voice.iOS \
+            --configuration Debug \
+            -p:RuntimeIdentifier=iossimulator-arm64 \
+            -p:AgoraVoicePackageVersion="${AGORA_VOICE_PACKAGE_VERSION}${s}"
 
   e2e:
     name: simulator smoke test (${{ matrix.package }}, ${{ matrix.target-framework }})
