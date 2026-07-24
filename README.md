@@ -7,13 +7,23 @@
 
 .NET for iOS and .NET MAUI bindings for Agora's native iOS SDKs.
 
-Two products are bound, from `net8.0-ios` through `net10.0-ios`:
+Four products are bound, from `net8.0-ios` through `net10.0-ios`:
 
 | Package | Native pod | Use it when |
 | --- | --- | --- |
 | `Net.Agora.Video.iOS` | [`AgoraRtcEngine_iOS`](https://cocoapods.org/pods/AgoraRtcEngine_iOS) | The app shows or sends video (also carries the full audio surface). |
 | `Net.Agora.Voice.iOS` | [`AgoraAudio_iOS`](https://cocoapods.org/pods/AgoraAudio_iOS) | Audio only — the same engine built without the video pipeline, one fewer framework and a markedly smaller payload. |
 | `Net.Agora.Signaling.iOS` | [`AgoraRtm_iOS`](https://cocoapods.org/pods/AgoraRtm_iOS) | Realtime messaging (Signaling / RTM 2.x, its own 2.2.x version line) — coexists with either RTC package. |
+| `Net.Agora.Chat.iOS` | [`Agora_Chat_iOS`](https://cocoapods.org/pods/Agora_Chat_iOS) | Persistent messaging (Chat / IM 1.x, its own version line) — coexists with everything else here. Note the underscores: the `AgoraChat` pod is the abandoned 3.8.x Easemob line, not this SDK. |
+
+Alongside them, twelve `Net.Agora.Extensions.<Name>.iOS` packages carry the RTC SDK's optional
+features — AI noise suppression, virtual background, spatial audio, the video enhancement filters,
+the software encoders and the rest — mirroring `AgoraRtcEngine_iOS`'s own CocoaPods subspecs. They
+are native payload only: the switch that turns each one on already exists on `AgoraRtcEngineKit`,
+and what these packages add is the framework the engine loads when it is flipped. Add one alongside
+either RTC package — they depend on neither, so they do not force a flavour. See
+[src/Agora.Extension.md](src/Agora.Extension.md) for the full list and for what is deliberately
+absent.
 
 ```bash
 dotnet add package Net.Agora.Video.iOS   # or Net.Agora.Voice.iOS
@@ -75,6 +85,8 @@ callbacks. Extend it by reading more of the same headers as more of the SDK is n
 ```sh
 ./build/fetch-video.sh            # downloads + SHA-256-verifies the xcframeworks into src/Net.Agora.Video.iOS/lib
 ./build/fetch-voice.sh            # same, for Net.Agora.Voice.iOS
+./build/fetch-signaling.sh        # same, for Net.Agora.Signaling.iOS
+./build/fetch-chat.sh             # same, for Net.Agora.Chat.iOS (two archives — see the script)
 ./build/BuildNugets.sh            # packs into ./artifacts
 dotnet test tests/Net.Agora.iOS.PackageTests
 ```

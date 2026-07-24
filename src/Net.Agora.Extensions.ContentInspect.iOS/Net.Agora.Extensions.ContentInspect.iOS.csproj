@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AgoraPackageName>Extensions.ContentInspect</AgoraPackageName>
+    <!--
+      A dynamic framework, so it cannot be embedded into this assembly and linked from there — the
+      consuming app's linker never sees it. It travels beside the assembly instead, as
+      <Assembly>.resources.zip.
+    -->
+    <NoBindingEmbedding>true</NoBindingEmbedding>
+    <!--
+      No VersionPrefix override: the extensions ride the RTC version line, which is this
+      repository's default. Agora ships them inside the AgoraRtcEngine_iOS archive itself, at the
+      same version as AgoraRtcKit.
+    -->
+  </PropertyGroup>
+
+  <Import Project="../Agora.Binding.props" />
+
+  <Target Name="ValidateAgoraXcframeworks" BeforeTargets="Build;Pack"
+          Condition="!Exists('$(MSBuildProjectDirectory)/lib/AgoraContentInspectExtension.xcframework')">
+    <Error Text="lib/AgoraContentInspectExtension.xcframework is missing. Run build/fetch-extensions.sh first." />
+  </Target>
+
+  <!--
+    Empty on purpose — see src/Agora.Extension.md. This package carries native payload and no
+    managed API: the switch that turns the extension on already exists on AgoraRtcEngineKit, in
+    Net.Agora.Video.iOS / Net.Agora.Voice.iOS. The file exists at all because the iOS SDK refuses
+    to build a binding project without one ("No API definition file specified").
+  -->
+  <ItemGroup>
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <NativeReference Include="lib/AgoraContentInspectExtension.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <Title>The Agora content moderation extension for .NET for iOS.</Title>
+    <Description>The native payload for Agora's content moderation extension, staged out of the AgoraRtcEngine_iOS $(AgoraVideoIosVersion) archive and packaged for .NET for iOS. Samples the outgoing video and classifies it on-device, for apps that must moderate what their users broadcast. Add it alongside Net.Agora.Video.iOS or Net.Agora.Voice.iOS — it carries no managed API of its own; the switch that turns it on is AgoraRtcEngineKit.EnableContentInspect in the RTC binding.</Description>
+    <PackageTags>$(PackageTags);RTC;extension;content;moderation</PackageTags>
+  </PropertyGroup>
+
+</Project>

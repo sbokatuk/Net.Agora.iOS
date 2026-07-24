@@ -76,4 +76,5 @@ jobs:
             echo "- [Net.Agora.Video.iOS](https://www.nuget.org/packages/Net.Agora.Video.iOS/${AGORA_VIDEO_PACKAGE_VERSION}-${s})"
             echo "- [Net.Agora.Voice.iOS](https://www.nuget.org/packages/Net.Agora.Voice.iOS/${AGORA_VOICE_PACKAGE_VERSION}-${s})"
             echo "- [Net.Agora.Signaling.iOS](https://www.nuget.org/packages/Net.Agora.Signaling.iOS/${AGORA_SIGNALING_PACKAGE_VERSION}-${s})"
+            echo "- [Net.Agora.Chat.iOS](https://www.nuget.org/packages/Net.Agora.Chat.iOS/${AGORA_CHAT_PACKAGE_VERSION}-${s})"
           } >> "$GITHUB_STEP_SUMMARY"

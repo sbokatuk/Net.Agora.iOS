@@ -22,9 +22,9 @@
       the native artifact stays put.
     -->
     <AgoraVideoIosVersion>4.6.2</AgoraVideoIosVersion>
-    <AgoraVideoBindingRevision>3</AgoraVideoBindingRevision>
+    <AgoraVideoBindingRevision>4</AgoraVideoBindingRevision>
     <AgoraVoiceIosVersion>4.6.2</AgoraVoiceIosVersion>
-    <AgoraVoiceBindingRevision>3</AgoraVoiceBindingRevision>
+    <AgoraVoiceBindingRevision>4</AgoraVoiceBindingRevision>
     <!--
       Signaling (RTM) is a different product with its own native version line — 2.2.x, nothing to
       do with the RTC 4.6.x line above. See build/BuildNugets.sh for how releases handle packages
@@ -32,6 +32,16 @@
     -->
     <AgoraSignalingIosVersion>2.2.6</AgoraSignalingIosVersion>
     <AgoraSignalingBindingRevision>1</AgoraSignalingBindingRevision>
+    <!--
+      Chat is a third product on a third native line — 1.4.x. Its pod is Agora_Chat_iOS, not the
+      AgoraChat pod on CocoaPods trunk: that one is the abandoned 3.8.x Easemob line and has
+      nothing to do with this release. Unlike the RTC pods, Agora_Chat_iOS does not bundle aosl —
+      it declares AgoraInfra_iOS as a dependency, so the fetch script downloads two archives and
+      that pod's version is pinned separately here.
+    -->
+    <AgoraChatIosVersion>1.4.0</AgoraChatIosVersion>
+    <AgoraChatInfraIosVersion>1.3.5</AgoraChatInfraIosVersion>
+    <AgoraChatBindingRevision>1</AgoraChatBindingRevision>
     <!--
       The default for projects that do not pick their own line (tests, and the Video binding
       itself); the Voice .csproj overrides this with its own pair.
