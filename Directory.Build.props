@@ -22,9 +22,9 @@
       the native artifact stays put.
     -->
     <AgoraVideoIosVersion>4.6.2</AgoraVideoIosVersion>
-    <AgoraVideoBindingRevision>1</AgoraVideoBindingRevision>
+    <AgoraVideoBindingRevision>2</AgoraVideoBindingRevision>
     <AgoraVoiceIosVersion>4.6.2</AgoraVoiceIosVersion>
-    <AgoraVoiceBindingRevision>1</AgoraVoiceBindingRevision>
+    <AgoraVoiceBindingRevision>2</AgoraVoiceBindingRevision>
     <!--
       The default for projects that do not pick their own line (tests, and the Video binding
       itself); the Voice .csproj overrides this with its own pair.

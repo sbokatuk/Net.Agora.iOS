@@ -53,6 +53,17 @@ namespace Net.Agora.Video.iOS {
 		UIView View { get; set; }
 	}
 
+	// AgoraRtcAudioVolumeInfo — AgoraObjects.h. One speaker's entry in the volume indication
+	// callback: uid 0 is the local user in the local callback, volume ranges 0–255.
+	[BaseType (typeof (NSObject))]
+	public interface AgoraRtcAudioVolumeInfo {
+		[Export ("uid")]
+		nuint Uid { get; set; }
+
+		[Export ("volume")]
+		nuint Volume { get; set; }
+	}
+
 	[BaseType (typeof (NSObject))]
 	public interface AgoraRtcEngineKit {
 
@@ -109,6 +120,30 @@ namespace Net.Agora.Video.iOS {
 
 		[Export ("stopPreview")]
 		nint StopPreview ();
+
+		// - (int)switchCamera — front/back toggle; only meaningful while capturing.
+		[Export ("switchCamera")]
+		nint SwitchCamera ();
+
+		// - (int)renewToken: — the other half of the TokenPrivilegeWillExpire callback below.
+		[Export ("renewToken:")]
+		nint RenewToken (string token);
+
+		// Audio route. setDefaultAudioRouteToSpeakerphone: picks the default before joining;
+		// setEnableSpeakerphone: overrides it live in the channel — AgoraRtcEngineKit.h documents
+		// both and the interplay between them. The live override answers -3 (not ready) until an
+		// audio session exists — observed on the Voice package's simulator suite.
+		[Export ("setDefaultAudioRouteToSpeakerphone:")]
+		nint SetDefaultAudioRouteToSpeakerphone (bool defaultToSpeaker);
+
+		[Export ("setEnableSpeakerphone:")]
+		nint SetEnableSpeakerphone (bool enableSpeaker);
+
+		// - (int)enableAudioVolumeIndication:smooth:reportVad: — interval in ms; smooth is the
+		// smoothing factor (the header recommends 3). The header claims interval <= 0 disables,
+		// but the 4.6.2 engine answers -2 (invalid argument) to 0 — don't rely on it.
+		[Export ("enableAudioVolumeIndication:smooth:reportVad:")]
+		nint EnableAudioVolumeIndication (nint interval, nint smooth, bool reportVad);
 	}
 
 	// AgoraRtcEngineDelegate — AgoraRtcEngineDelegate.h. Every method there is @optional; scoped
@@ -132,5 +167,28 @@ namespace Net.Agora.Video.iOS {
 
 		[Export ("rtcEngine:didOccurError:")]
 		void DidOccurError (AgoraRtcEngineKit engine, AgoraErrorCode errorCode);
+
+		// A remote user muting/unmuting their microphone or camera — the "who is muted" signals a
+		// call UI shows.
+		[Export ("rtcEngine:didAudioMuted:byUid:")]
+		void DidAudioMuted (AgoraRtcEngineKit engine, bool muted, nuint uid);
+
+		[Export ("rtcEngine:didVideoMuted:byUid:")]
+		void DidVideoMuted (AgoraRtcEngineKit engine, bool muted, nuint uid);
+
+		// Speaker volumes, at the cadence EnableAudioVolumeIndication configured. The speakers
+		// array carries the loudest few; uid 0 means the local user in the local callback.
+		[Export ("rtcEngine:reportAudioVolumeIndicationOfSpeakers:totalVolume:")]
+		void ReportAudioVolumeIndication (AgoraRtcEngineKit engine, AgoraRtcAudioVolumeInfo[] speakers, nint totalVolume);
+
+		// - (void)rtcEngine:tokenPrivilegeWillExpire: — fire RenewToken from here.
+		[Export ("rtcEngine:tokenPrivilegeWillExpire:")]
+		void TokenPrivilegeWillExpire (AgoraRtcEngineKit engine, string token);
+
+		// The connection lifecycle (connecting/connected/reconnecting/...). The reason parameter
+		// is AgoraConnectionChangedReason — ~30 values; carried as its raw NSInteger rather than
+		// binding an enum consumers would mostly pass through as a number anyway.
+		[Export ("rtcEngine:connectionChangedToState:reason:")]
+		void ConnectionChangedToState (AgoraRtcEngineKit engine, AgoraConnectionState state, nint reason);
 	}
 }

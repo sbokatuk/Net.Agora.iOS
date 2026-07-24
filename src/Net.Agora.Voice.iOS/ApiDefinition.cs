@@ -143,5 +143,11 @@ namespace Net.Agora.Voice.iOS {
 		// - (void)rtcEngine:tokenPrivilegeWillExpire: — fire RenewToken from here.
 		[Export ("rtcEngine:tokenPrivilegeWillExpire:")]
 		void TokenPrivilegeWillExpire (AgoraRtcEngineKit engine, string token);
+
+		// The connection lifecycle (connecting/connected/reconnecting/...). The reason parameter
+		// is AgoraConnectionChangedReason — ~30 values; carried as its raw NSInteger rather than
+		// binding an enum consumers would mostly pass through as a number anyway.
+		[Export ("rtcEngine:connectionChangedToState:reason:")]
+		void ConnectionChangedToState (AgoraRtcEngineKit engine, AgoraConnectionState state, nint reason);
 	}
 }

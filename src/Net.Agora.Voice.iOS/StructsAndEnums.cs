@@ -30,4 +30,13 @@ namespace Net.Agora.Voice.iOS {
 		Dropped = 1,
 		BecomeAudience = 2,
 	}
+
+	// AgoraConnectionState — AgoraEnumerates.h.
+	public enum AgoraConnectionState : long {
+		Disconnected = 1,
+		Connecting = 2,
+		Connected = 3,
+		Reconnecting = 4,
+		Failed = 5,
+	}
 }

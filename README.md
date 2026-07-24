@@ -23,8 +23,8 @@ collides at bundle time — mirroring Agora's own pods. The bindings' namespaces
 (`Net.Agora.Video.iOS` / `Net.Agora.Voice.iOS`).
 
 These are raw platform bindings — hand-written surfaces over `AgoraRtcEngineKit`, scoped to what
-the cross-platform clients need (the Voice binding adds the audio-route, volume-indication and
-token-renewal surface a voice app wants). Most apps want the cross-platform clients instead:
+the cross-platform clients need: engine lifecycle, join/leave, publish/mute, audio routing,
+volume indication, token renewal and connection state, plus the camera surface in Video. Most apps want the cross-platform clients instead:
 [`Net.Agora.Video` / `Net.Agora.Voice`](https://github.com/sbokatuk/Net.Agora), which wrap these
 packages and their Android siblings behind one API. Reach for a binding directly only when you
 need something the cross-platform client does not expose.

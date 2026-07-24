@@ -63,12 +63,14 @@ public static class SmokeTests
 #if AGORA_VOICE
         new("enables and disables audio", EnablesAndDisablesMedia),
         new("mutes and unmutes the local audio stream", MutesAndUnmutesLocalStreams),
-        new("drives the audio route and volume indication", DrivesAudioRouteAndVolumeIndication),
 #else
         new("enables and disables video and audio", EnablesAndDisablesMedia),
         new("mutes and unmutes the local streams", MutesAndUnmutesLocalStreams),
         new("attaches and detaches a local video canvas", AttachesALocalVideoCanvas),
+        new("switches the camera is reported, not thrown", SwitchesCameraIsReported),
 #endif
+        new("drives the audio route and volume indication", DrivesAudioRouteAndVolumeIndication),
+        new("renews a token without a join is reported, not thrown", RenewTokenIsReported),
         new("sets the channel profile and client role", SetsProfileAndRole),
         new("leave without a join is reported, not thrown", LeaveWithoutAJoinIsReported),
         new("destroys the shared engine", DestroysTheEngine),
@@ -231,13 +233,12 @@ public static class SmokeTests
 #endif
     }
 
-#if AGORA_VOICE
     private static void DrivesAudioRouteAndVolumeIndication()
     {
-        // The audio-route setters and the volume-indication cadence are the Voice binding's own
-        // additions over the shared join/mute surface, so this flavour is where they are proven
-        // to cross the bridge. The default-route and volume-indication calls are local engine
-        // state and must answer zero.
+        // The audio-route setters and the volume-indication cadence started as the Voice
+        // binding's additions and are now bound in both flavours, so both prove they cross the
+        // bridge. The default-route and volume-indication calls are local engine state and must
+        // answer zero.
         // No disabling counterpart is exercised: the header documents interval <= 0 as "disable",
         // but the 4.6.2 engine answers -2 (invalid argument) to it — observed on the first run of
         // this suite — so the claim is the SDK's to sort out, not one to assert either way.
@@ -251,6 +252,26 @@ public static class SmokeTests
         // is that the call crosses the bridge and comes back as a code rather than a crash.
         var code = Engine.SetEnableSpeakerphone(true);
         Report($"setEnableSpeakerphone(true) returned {code}");
+    }
+
+    private static void RenewTokenIsReported()
+    {
+        // No join ever happens in this suite, so the value is the SDK's business — what matters
+        // is that the call crosses the bridge and comes back as a code rather than a crash.
+        var code = Engine.RenewToken("0123456789abcdef0123456789abcdef");
+
+        Report($"renewToken returned {code}");
+    }
+
+#if !AGORA_VOICE
+    private static void SwitchesCameraIsReported()
+    {
+        // Report-only for the same reason StartPreview is never called here: nothing is
+        // capturing on a headless simulator, so the engine legitimately answers an error rather
+        // than 0 — crossing the bridge is what this proves.
+        var code = Engine.SwitchCamera();
+
+        Report($"switchCamera returned {code}");
     }
 #endif
 
