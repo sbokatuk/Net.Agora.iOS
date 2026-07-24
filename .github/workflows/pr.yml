@@ -13,26 +13,23 @@ permissions:
 
 jobs:
   version:
-    name: resolve beta version
+    name: resolve beta suffix
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.resolve.outputs.version }}
+      suffix: ${{ steps.resolve.outputs.suffix }}
     steps:
-      - uses: actions/checkout@v4
-
       - id: resolve
         run: |
-          . ./build/pins.sh
-          version="${AGORA_VIDEO_PACKAGE_VERSION}-beta.${{ github.event.number }}.${{ github.run_number }}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "Building ${version}" >> "$GITHUB_STEP_SUMMARY"
+          suffix="beta.${{ github.event.number }}.${{ github.run_number }}"
+          echo "suffix=${suffix}" >> "$GITHUB_OUTPUT"
+          echo "Building every package at its own version with suffix -${suffix}" >> "$GITHUB_STEP_SUMMARY"
 
   build:
     name: build
     needs: version
     uses: ./.github/workflows/build.yml
     with:
-      version: ${{ needs.version.outputs.version }}
+      suffix: ${{ needs.version.outputs.suffix }}
 
   publish:
     name: publish beta to nuget.org
@@ -68,8 +65,15 @@ jobs:
             --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
             --skip-duplicate
 
+      - uses: actions/checkout@v4
+
       - name: Summarise
         run: |
-          echo "### Published \`${{ needs.version.outputs.version }}\` to nuget.org" >> "$GITHUB_STEP_SUMMARY"
-          echo "- [Net.Agora.Video.iOS](https://www.nuget.org/packages/Net.Agora.Video.iOS/${{ needs.version.outputs.version }})" >> "$GITHUB_STEP_SUMMARY"
-          echo "- [Net.Agora.Voice.iOS](https://www.nuget.org/packages/Net.Agora.Voice.iOS/${{ needs.version.outputs.version }})" >> "$GITHUB_STEP_SUMMARY"
+          . ./build/pins.sh
+          s="${{ needs.version.outputs.suffix }}"
+          {
+            echo "### Published beta packages to nuget.org"
+            echo "- [Net.Agora.Video.iOS](https://www.nuget.org/packages/Net.Agora.Video.iOS/${AGORA_VIDEO_PACKAGE_VERSION}-${s})"
+            echo "- [Net.Agora.Voice.iOS](https://www.nuget.org/packages/Net.Agora.Voice.iOS/${AGORA_VOICE_PACKAGE_VERSION}-${s})"
+            echo "- [Net.Agora.Signaling.iOS](https://www.nuget.org/packages/Net.Agora.Signaling.iOS/${AGORA_SIGNALING_PACKAGE_VERSION}-${s})"
+          } >> "$GITHUB_STEP_SUMMARY"

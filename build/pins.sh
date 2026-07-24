@@ -21,3 +21,9 @@ AGORA_VOICE_IOS_VERSION="$(grep -oE '<AgoraVoiceIosVersion>[^<]+' "${AGORA_REPO_
 export AGORA_VOICE_BINDING_REVISION
 AGORA_VOICE_BINDING_REVISION="$(grep -oE '<AgoraVoiceBindingRevision>[^<]+' "${AGORA_REPO_ROOT}/Directory.Build.props" | head -1 | sed 's/<AgoraVoiceBindingRevision>//')"
 export AGORA_VOICE_PACKAGE_VERSION="${AGORA_VOICE_IOS_VERSION}.${AGORA_VOICE_BINDING_REVISION}"
+
+export AGORA_SIGNALING_IOS_VERSION
+AGORA_SIGNALING_IOS_VERSION="$(grep -oE '<AgoraSignalingIosVersion>[^<]+' "${AGORA_REPO_ROOT}/Directory.Build.props" | head -1 | sed 's/<AgoraSignalingIosVersion>//')"
+export AGORA_SIGNALING_BINDING_REVISION
+AGORA_SIGNALING_BINDING_REVISION="$(grep -oE '<AgoraSignalingBindingRevision>[^<]+' "${AGORA_REPO_ROOT}/Directory.Build.props" | head -1 | sed 's/<AgoraSignalingBindingRevision>//')"
+export AGORA_SIGNALING_PACKAGE_VERSION="${AGORA_SIGNALING_IOS_VERSION}.${AGORA_SIGNALING_BINDING_REVISION}"

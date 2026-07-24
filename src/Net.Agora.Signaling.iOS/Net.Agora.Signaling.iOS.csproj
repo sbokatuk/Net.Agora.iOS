@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AgoraPackageName>Signaling</AgoraPackageName>
+    <!--
+      AgoraRtmKit and aosl are dynamic frameworks, so they cannot be embedded into this assembly
+      and linked from there — the consuming app's linker never sees them. They travel beside the
+      assembly instead; see the NativeReference block below.
+    -->
+    <NoBindingEmbedding>true</NoBindingEmbedding>
+    <Nullable>enable</Nullable>
+    <VersionPrefix>$(AgoraSignalingIosVersion).$(AgoraSignalingBindingRevision)</VersionPrefix>
+  </PropertyGroup>
+
+  <Import Project="../Agora.Binding.props" />
+
+  <Target Name="ValidateAgoraXcframeworks" BeforeTargets="Build;Pack"
+          Condition="!Exists('$(MSBuildProjectDirectory)/lib/AgoraRtmKit.xcframework')">
+    <Error Text="lib/AgoraRtmKit.xcframework is missing. Run build/fetch-signaling.sh first." />
+  </Target>
+
+  <ItemGroup>
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+    <ObjcBindingCoreSource Include="StructsAndEnums.cs" />
+  </ItemGroup>
+
+  <!--
+    How the frameworks reach the consuming app — same mechanics as the RTC bindings: dynamic
+    frameworks packed beside the assembly as <name>.resources.zip, unpacked and linked by the
+    Apple SDK in whichever app references this package.
+
+    AgoraRtmKit links exactly one @rpath dependency, aosl (confirmed with `otool -L`). Fetched by
+    build/fetch-signaling.sh from Agora's own SDK download, so they are not in git — including the
+    visionOS slice stripping that script performs.
+
+    This package coexists with either RTC package in one app — different framework names,
+    different classes. (Both ship an aosl.xcframework, but it is the same infra library and the
+    app bundle carries a single copy.)
+  -->
+  <ItemGroup>
+    <NativeReference Include="lib/AgoraRtmKit.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+    <NativeReference Include="lib/aosl.xcframework">
+      <Kind>Framework</Kind>
+    </NativeReference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <Description>.NET for iOS / .NET MAUI bindings for the Agora Signaling (RTM) iOS SDK (AgoraRtm_iOS $(AgoraSignalingIosVersion)). Lets a .NET app log in to Agora Signaling, subscribe to channels and publish/receive messages. Hand-written against the real headers — see ApiDefinition.cs for why, and for the bound surface.</Description>
+    <PackageTags>$(PackageTags);Signaling;RTM;messaging;realtime</PackageTags>
+  </PropertyGroup>
+
+</Project>

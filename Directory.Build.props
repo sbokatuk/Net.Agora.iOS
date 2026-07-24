@@ -22,9 +22,16 @@
       the native artifact stays put.
     -->
     <AgoraVideoIosVersion>4.6.2</AgoraVideoIosVersion>
-    <AgoraVideoBindingRevision>2</AgoraVideoBindingRevision>
+    <AgoraVideoBindingRevision>3</AgoraVideoBindingRevision>
     <AgoraVoiceIosVersion>4.6.2</AgoraVoiceIosVersion>
-    <AgoraVoiceBindingRevision>2</AgoraVoiceBindingRevision>
+    <AgoraVoiceBindingRevision>3</AgoraVoiceBindingRevision>
+    <!--
+      Signaling (RTM) is a different product with its own native version line — 2.2.x, nothing to
+      do with the RTC 4.6.x line above. See build/BuildNugets.sh for how releases handle packages
+      whose versions do not move together.
+    -->
+    <AgoraSignalingIosVersion>2.2.6</AgoraSignalingIosVersion>
+    <AgoraSignalingBindingRevision>1</AgoraSignalingBindingRevision>
     <!--
       The default for projects that do not pick their own line (tests, and the Video binding
       itself); the Voice .csproj overrides this with its own pair.

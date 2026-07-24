@@ -44,9 +44,11 @@ public class PackageLayoutTests
             $"{packageId} is missing '{Packages.ResourcesEntry(packageId, tfm)}'. " +
             "Has CompressBindingResourcePackage been unset?");
 
-        // The native payload is tens of megabytes even compressed — AgoraRtcKit alone dwarfs the
-        // floor, in the voice build too. Anything near it means an empty placeholder was packed.
-        Assert.True(entry!.Length > 10_000_000, $"'{entry.FullName}' is only {entry.Length} bytes.");
+        // The native payload is megabytes even compressed, with a floor per package (see
+        // Packages.All). Anything near it means an empty placeholder was packed.
+        Assert.True(
+            entry!.Length > Packages.MinPayloadBytesOf(packageId),
+            $"'{entry.FullName}' is only {entry.Length} bytes.");
     }
 
     [Theory]

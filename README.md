@@ -13,13 +13,14 @@ Two products are bound, from `net8.0-ios` through `net10.0-ios`:
 | --- | --- | --- |
 | `Net.Agora.Video.iOS` | [`AgoraRtcEngine_iOS`](https://cocoapods.org/pods/AgoraRtcEngine_iOS) | The app shows or sends video (also carries the full audio surface). |
 | `Net.Agora.Voice.iOS` | [`AgoraAudio_iOS`](https://cocoapods.org/pods/AgoraAudio_iOS) | Audio only — the same engine built without the video pipeline, one fewer framework and a markedly smaller payload. |
+| `Net.Agora.Signaling.iOS` | [`AgoraRtm_iOS`](https://cocoapods.org/pods/AgoraRtm_iOS) | Realtime messaging (Signaling / RTM 2.x, its own 2.2.x version line) — coexists with either RTC package. |
 
 ```bash
 dotnet add package Net.Agora.Video.iOS   # or Net.Agora.Voice.iOS
 ```
 
-Pick **one**: both pods ship a framework named `AgoraRtcKit`, so referencing both packages
-collides at bundle time — mirroring Agora's own pods. The bindings' namespaces follow the package
+Pick **one of the RTC pair**: both pods ship a framework named `AgoraRtcKit`, so referencing
+both packages collides at bundle time — mirroring Agora's own pods. The bindings' namespaces follow the package
 (`Net.Agora.Video.iOS` / `Net.Agora.Voice.iOS`).
 
 These are raw platform bindings — hand-written surfaces over `AgoraRtcEngineKit`, scoped to what
@@ -130,12 +131,19 @@ run on macOS — iOS builds have no cross-platform path, unlike the Android bind
 ## Sample
 
 `samples/Net.Agora.Sample.iOS` is a MAUI app (iOS only) that joins a channel and publishes/renders
-video directly against `AgoraRtcEngineKit`: an App ID/channel/token entry, Join/Leave buttons, and
-a local + remote video view backed by a hand-rolled MAUI handler (`AgoraVideoView.cs`) — which is
-exactly what a consumer skipping the cross-platform façade has to wire up, and the part the
-[façade repo][facade]'s `Net.Agora.Video.Maui` package otherwise does for you. It's the same flow
-as that repo's cross-platform MAUI sample, but built straight against this package with no façade
-in between — proof `Net.Agora.Video.iOS` is consumable end to end.
+video directly against `AgoraRtcEngineKit`: an App ID/channel/token entry, Join/Leave/Flip/Mute
+buttons, and a local + remote video view backed by a hand-rolled MAUI handler
+(`AgoraVideoView.cs`) — which is exactly what a consumer skipping the cross-platform façade has
+to wire up, and the part the [façade repo][facade]'s `Net.Agora.Video.Maui` package otherwise
+does for you. Its **Try Signaling** button drives `AgoraRtmClientKit` from the same app — the
+coexistence of the two products, proven at bundle time just by building.
+
+`samples/Net.Agora.Sample.Voice.iOS` is the audio-only sibling against `Net.Agora.Voice.iOS`:
+join, mute, speakerphone routing and the who-is-speaking volume reports, with no camera
+permission anywhere.
+
+Both are the same flows as the façade repo's cross-platform MAUI samples, built straight against
+these packages with no façade in between — proof they are consumable end to end.
 
 It consumes the packed `Net.Agora.Video.iOS` package from `./artifacts` (see `NuGet.config`), so
 fetch and pack first:
