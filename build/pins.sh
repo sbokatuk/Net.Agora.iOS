@@ -35,3 +35,9 @@ AGORA_CHAT_INFRA_IOS_VERSION="$(grep -oE '<AgoraChatInfraIosVersion>[^<]+' "${AG
 export AGORA_CHAT_BINDING_REVISION
 AGORA_CHAT_BINDING_REVISION="$(grep -oE '<AgoraChatBindingRevision>[^<]+' "${AGORA_REPO_ROOT}/Directory.Build.props" | head -1 | sed 's/<AgoraChatBindingRevision>//')"
 export AGORA_CHAT_PACKAGE_VERSION="${AGORA_CHAT_IOS_VERSION}.${AGORA_CHAT_BINDING_REVISION}"
+
+export AGORA_WHITEBOARD_IOS_VERSION
+AGORA_WHITEBOARD_IOS_VERSION="$(grep -oE '<AgoraWhiteboardIosVersion>[^<]+' "${AGORA_REPO_ROOT}/Directory.Build.props" | head -1 | sed 's/<AgoraWhiteboardIosVersion>//')"
+export AGORA_WHITEBOARD_BINDING_REVISION
+AGORA_WHITEBOARD_BINDING_REVISION="$(grep -oE '<AgoraWhiteboardBindingRevision>[^<]+' "${AGORA_REPO_ROOT}/Directory.Build.props" | head -1 | sed 's/<AgoraWhiteboardBindingRevision>//')"
+export AGORA_WHITEBOARD_PACKAGE_VERSION="${AGORA_WHITEBOARD_IOS_VERSION}.${AGORA_WHITEBOARD_BINDING_REVISION}"

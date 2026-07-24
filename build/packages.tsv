@@ -14,6 +14,8 @@ Video	-
 Voice	-
 Signaling	-
 Chat	-
+# Built from netless's source rather than fetched — see build/build-whiteboard.sh.
+Whiteboard	-
 # The optional RTC feature extensions: native payload only, no managed API, no dependency on
 # either RTC package. Their frameworks come out of the AgoraRtcEngine_iOS archive itself — see
 # build/fetch-extensions.sh, which reads these rows.

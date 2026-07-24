@@ -1,0 +1,20 @@
+<Project>
+
+  <!--
+    Puts the board's JavaScript into the consuming app's bundle.
+
+    The Interactive Whiteboard is a web app behind a WKWebView, and this bundle is the page it
+    loads. The library finds it through the module-bundle finder Swift Package Manager generated
+    when it was built, which looks up "Whiteboard_Whiteboard.bundle" in the main bundle by that
+    exact name — so the directory name here is not ours to tidy.
+
+    A binding project cannot ship this as its own @(BundleResource): that packs the assembly and
+    the native payload only. So the bundle is packed as plain content and declared here instead,
+    where "here" is the app being built.
+  -->
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+    <BundleResource Include="$(MSBuildThisFileDirectory)../whiteboard/Whiteboard_Whiteboard.bundle/**/*"
+                    LogicalName="Whiteboard_Whiteboard.bundle/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>
