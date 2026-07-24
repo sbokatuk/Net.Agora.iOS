@@ -1,15 +1,19 @@
 name: build
 
-# Reusable pipeline: packs every package in build/packages.tsv at a given version, validates the
-# result, builds the MAUI sample against the packed package, and runs the simulator smoke tests.
-# Callers (pr.yml, release.yml) decide the version and what to do with it.
+# Reusable pipeline: packs every package in build/packages.tsv — each at its own version from
+# Directory.Build.props, optionally suffixed for prereleases — validates the result, builds the
+# MAUI sample against the packed package, and runs the simulator smoke tests.
 
 on:
   workflow_call:
     inputs:
-      version:
-        description: NuGet version to stamp on every package.
-        required: true
+      suffix:
+        description: >
+          Optional prerelease suffix (e.g. beta.12.34) appended to every package's own version.
+          The packages sit on independent native version lines (RTC 4.6.x, RTM 2.2.x), so there
+          is no single version to stamp — each packs at its own pin from Directory.Build.props.
+        required: false
+        default: ''
         type: string
       e2e-target-frameworks:
         description: >
@@ -64,6 +68,7 @@ jobs:
           path: |
             src/Net.Agora.Video.iOS/lib
             src/Net.Agora.Voice.iOS/lib
+            src/Net.Agora.Signaling.iOS/lib
           key: agora-ios-xcframeworks-${{ hashFiles('Directory.Build.props', 'build/checksums.txt') }}
 
       - name: Fetch the Agora iOS SDKs
@@ -71,9 +76,15 @@ jobs:
         run: |
           ./build/fetch-video.sh
           ./build/fetch-voice.sh
+          ./build/fetch-signaling.sh
 
       - name: Pack
-        run: ./build/BuildNugets.sh "${{ inputs.version }}"
+        run: |
+          if [ -n "${{ inputs.suffix }}" ]; then
+            ./build/BuildNugets.sh --suffix "${{ inputs.suffix }}"
+          else
+            ./build/BuildNugets.sh
+          fi
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
@@ -152,10 +163,12 @@ jobs:
       # free; the sample deliberately does not target net10 — the device tests cover that.
       - name: Build the sample against the packed package
         run: |
+          . ./build/pins.sh
+          version="${AGORA_VIDEO_PACKAGE_VERSION}${{ inputs.suffix != '' && format('-{0}', inputs.suffix) || '' }}"
           dotnet build samples/Net.Agora.Sample.iOS \
             --configuration Debug \
             -p:RuntimeIdentifier=iossimulator-arm64 \
-            -p:AgoraVideoPackageVersion="${{ inputs.version }}"
+            -p:AgoraVideoPackageVersion="${version}"
 
   e2e:
     name: simulator smoke test (${{ matrix.package }}, ${{ matrix.target-framework }})
@@ -167,8 +180,11 @@ jobs:
       # "net8 only", "Voice only" and "all of them" point at very different causes.
       fail-fast: false
       matrix:
-        # One leg per package: both ship a framework named AgoraRtcKit, so a single device test
-        # app holds exactly one of them — see tests/Net.Agora.iOS.DeviceTests.
+        # One leg per package: the RTC pair ship a framework named AgoraRtcKit, so a single
+        # device test app holds exactly one of them — see tests/Net.Agora.iOS.DeviceTests.
+        # Signaling has no leg here yet: its packed binding is exercised end to end by the façade
+        # repository's own simulator suite, and this repository's package tests cover its layout
+        # and API surface.
         package: [Video, Voice]
         target-framework: ${{ fromJSON(inputs.e2e-target-frameworks) }}
     steps:
@@ -201,7 +217,15 @@ jobs:
           path: artifacts
 
       - name: Run smoke tests on simulator
-        run: ./.github/scripts/run-simulator-tests.sh "${{ inputs.version }}" "${{ matrix.target-framework }}" "${{ matrix.package }}"
+        run: |
+          . ./build/pins.sh
+          case "${{ matrix.package }}" in
+            Video) base="${AGORA_VIDEO_PACKAGE_VERSION}" ;;
+            Voice) base="${AGORA_VOICE_PACKAGE_VERSION}" ;;
+            Signaling) base="${AGORA_SIGNALING_PACKAGE_VERSION}" ;;
+          esac
+          version="${base}${{ inputs.suffix != '' && format('-{0}', inputs.suffix) || '' }}"
+          ./.github/scripts/run-simulator-tests.sh "${version}" "${{ matrix.target-framework }}" "${{ matrix.package }}"
 
       - name: Upload simulator logs
         if: always()

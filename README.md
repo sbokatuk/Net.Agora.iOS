@@ -13,13 +13,14 @@ Two products are bound, from `net8.0-ios` through `net10.0-ios`:
 | --- | --- | --- |
 | `Net.Agora.Video.iOS` | [`AgoraRtcEngine_iOS`](https://cocoapods.org/pods/AgoraRtcEngine_iOS) | The app shows or sends video (also carries the full audio surface). |
 | `Net.Agora.Voice.iOS` | [`AgoraAudio_iOS`](https://cocoapods.org/pods/AgoraAudio_iOS) | Audio only — the same engine built without the video pipeline, one fewer framework and a markedly smaller payload. |
+| `Net.Agora.Signaling.iOS` | [`AgoraRtm_iOS`](https://cocoapods.org/pods/AgoraRtm_iOS) | Realtime messaging (Signaling / RTM 2.x, its own 2.2.x version line) — coexists with either RTC package. |
 
 ```bash
 dotnet add package Net.Agora.Video.iOS   # or Net.Agora.Voice.iOS
 ```
 
-Pick **one**: both pods ship a framework named `AgoraRtcKit`, so referencing both packages
-collides at bundle time — mirroring Agora's own pods. The bindings' namespaces follow the package
+Pick **one of the RTC pair**: both pods ship a framework named `AgoraRtcKit`, so referencing
+both packages collides at bundle time — mirroring Agora's own pods. The bindings' namespaces follow the package
 (`Net.Agora.Video.iOS` / `Net.Agora.Voice.iOS`).
 
 These are raw platform bindings — hand-written surfaces over `AgoraRtcEngineKit`, scoped to what

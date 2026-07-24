@@ -7,6 +7,7 @@ public static class Packages
 {
     public const string Video = "Net.Agora.Video.iOS";
     public const string Voice = "Net.Agora.Voice.iOS";
+    public const string Signaling = "Net.Agora.Signaling.iOS";
 
     /// <summary>
     /// Every package build/packages.tsv lists, with the xcframeworks it ships: the API surface
@@ -23,14 +24,20 @@ public static class Packages
     /// build of AgoraRtcKit links no video codec at all, which is exactly what Voice pays for:
     /// the list difference below is the size difference consumers pick the package for.
     /// </remarks>
-    public static readonly (string Id, string[] XcFrameworks)[] All =
+    public static readonly (string Id, string[] XcFrameworks, long MinPayloadBytes)[] All =
     [
-        (Video, ["AgoraRtcKit", "aosl", "Agorafdkaac", "Agoraffmpeg", "AgoraSoundTouch", "video_dec"]),
-        (Voice, ["AgoraRtcKit", "aosl", "Agorafdkaac", "Agoraffmpeg", "AgoraSoundTouch"]),
+        (Video, ["AgoraRtcKit", "aosl", "Agorafdkaac", "Agoraffmpeg", "AgoraSoundTouch", "video_dec"], 10_000_000),
+        (Voice, ["AgoraRtcKit", "aosl", "Agorafdkaac", "Agoraffmpeg", "AgoraSoundTouch"], 10_000_000),
+        // Signaling is a smaller product: two frameworks, and the fetch script strips the xros
+        // slices Agora ships only for this SDK.
+        (Signaling, ["AgoraRtmKit", "aosl"], 4_000_000),
     ];
 
     public static string[] XcFrameworksOf(string packageId) =>
         All.Single(p => p.Id == packageId).XcFrameworks;
+
+    public static long MinPayloadBytesOf(string packageId) =>
+        All.Single(p => p.Id == packageId).MinPayloadBytes;
 
     /// <summary>
     /// Target frameworks every package here must carry, one per SDK band pass. Pinned rather than
