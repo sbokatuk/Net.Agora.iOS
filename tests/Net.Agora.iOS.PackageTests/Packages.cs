@@ -10,6 +10,7 @@ public static class Packages
     public const string Signaling = "Net.Agora.Signaling.iOS";
     public const string Chat = "Net.Agora.Chat.iOS";
     public const string Whiteboard = "Net.Agora.Whiteboard.iOS";
+    public const string Fastboard = "Net.Agora.Fastboard.iOS";
 
     /// <summary>
     /// Every package build/packages.tsv lists, with the xcframeworks it ships: the API surface
@@ -48,6 +49,12 @@ public static class Packages
     /// full media SDK in it.
     /// </summary>
     public const long WhiteboardMinPayloadBytes = 500_000;
+
+    /// <summary>
+    /// Fastboard's payload floor. Higher than Whiteboard's because its static library contains the
+    /// whole whiteboard SDK as well as Fastboard and this repository's shim.
+    /// </summary>
+    public const long FastboardMinPayloadBytes = 1_000_000;
 
     public static string[] XcFrameworksOf(string packageId) =>
         All.Single(p => p.Id == packageId).XcFrameworks;

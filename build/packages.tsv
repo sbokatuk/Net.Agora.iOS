@@ -16,6 +16,9 @@ Signaling	-
 Chat	-
 # Built from netless's source rather than fetched — see build/build-whiteboard.sh.
 Whiteboard	-
+# netless's UI layer over the Whiteboard, and the one product bound through a shim of our own —
+# see native/AgoraFastboardBridge.
+Fastboard	-
 # The optional RTC feature extensions: native payload only, no managed API, no dependency on
 # either RTC package. Their frameworks come out of the AgoraRtcEngine_iOS archive itself — see
 # build/fetch-extensions.sh, which reads these rows.

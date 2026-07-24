@@ -152,6 +152,10 @@ namespace Net.Agora.Whiteboard.iOS {
 	// type: everything this binding calls is on WhiteRoom.
 	[BaseType (typeof (NSObject))]
 	public interface WhiteDisplayer {
+		// Neither SDK watches its own view's bounds, so a rotation or a layout change leaves the
+		// drawing surface at the old size until this is called.
+		[Export ("refreshViewSize")]
+		void RefreshViewSize ();
 	}
 
 	// WhiteRoom — WhiteRoom.h. The live session.

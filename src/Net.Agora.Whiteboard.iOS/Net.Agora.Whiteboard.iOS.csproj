@@ -46,8 +46,14 @@
     networking and rendering.
   -->
   <ItemGroup>
+    <!--
+      Kind=Static, not Framework, even though this is an .xcframework: what is inside it is a
+      static library, and Kind is about the payload rather than the container. With Framework the
+      linker takes the slice directory for a framework name and fails with
+      "ld: framework 'ios-arm64_x86_64-simulator' not found".
+    -->
     <NativeReference Include="lib/Whiteboard.xcframework">
-      <Kind>Framework</Kind>
+      <Kind>Static</Kind>
       <ForceLoad>True</ForceLoad>
       <SmartLink>False</SmartLink>
       <Frameworks>WebKit AVFoundation CoreGraphics CoreText</Frameworks>
@@ -78,7 +84,7 @@
     <None Include="lib/Whiteboard_Whiteboard.bundle/**/*"
           Exclude="lib/Whiteboard_Whiteboard.bundle/_CodeSignature/**/*"
           Pack="true"
-          PackagePath="whiteboard/Whiteboard_Whiteboard.bundle/%(RecursiveDir)"
+          PackagePath="whiteboard/Whiteboard_Whiteboard.bundle/%(RecursiveDir)%(Filename)%(Extension)"
           Visible="false" />
     <None Include="build/Net.Agora.Whiteboard.iOS.targets"
           Pack="true"
