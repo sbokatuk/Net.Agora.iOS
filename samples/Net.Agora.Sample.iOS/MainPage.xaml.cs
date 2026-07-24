@@ -1,4 +1,5 @@
 using System.Text;
+using Net.Agora.Signaling.iOS;
 using Net.Agora.Video.iOS;
 
 namespace Net.Agora.Sample.iOS;
@@ -7,7 +8,12 @@ namespace Net.Agora.Sample.iOS;
 /// Joins an Agora RTC channel, publishing this device's camera/microphone and rendering the first
 /// remote user's video — the same flow as Net.Agora/samples/Net.Agora.Sample, but built directly
 /// against <see cref="AgoraRtcEngineKit"/> rather than the cross-platform façade, since that
-/// façade lives in a separate repository this one does not depend on.
+/// façade lives in a separate repository this one does not depend on. Flip and Mute drive the
+/// raw camera/mute surface; every call answers an Agora error code, 0 for success.
+///
+/// The Signaling button drives <see cref="AgoraRtmClientKit"/> from the same app: the two
+/// products coexist (different frameworks, different classes), which this sample proves at
+/// bundle time just by building.
 /// </summary>
 public partial class MainPage : ContentPage
 {
@@ -16,6 +22,7 @@ public partial class MainPage : ContentPage
     private AgoraRtcEngineKit? _engine;
     private EngineDelegate? _delegate;
     private nuint? _remoteUid;
+    private bool _muted;
 
     public MainPage()
     {
@@ -86,6 +93,60 @@ public partial class MainPage : ContentPage
     {
         JoinButton.IsEnabled = !joined;
         LeaveButton.IsEnabled = joined;
+        FlipButton.IsEnabled = joined;
+        MuteButton.IsEnabled = joined;
+        if (!joined)
+        {
+            _muted = false;
+            MuteButton.Text = "Mute";
+        }
+    }
+
+    private void OnFlipClicked(object? sender, EventArgs e)
+    {
+        var code = _engine?.SwitchCamera() ?? -1;
+        Append(code == 0 ? "camera switched" : $"switchCamera returned {code}");
+    }
+
+    private void OnMuteClicked(object? sender, EventArgs e)
+    {
+        _muted = !_muted;
+        var code = _engine?.MuteLocalAudioStream(_muted) ?? -1;
+        MuteButton.Text = _muted ? "Unmute" : "Mute";
+        Append(code == 0
+            ? (_muted ? "microphone muted" : "microphone unmuted")
+            : $"muteLocalAudioStream returned {code}");
+    }
+
+    private void OnSignalingClicked(object? sender, EventArgs e)
+    {
+        var appId = AppIdEntry.Text?.Trim();
+        if (string.IsNullOrEmpty(appId))
+        {
+            Append("enter an App ID first");
+            return;
+        }
+
+        // The raw RTM surface, from the same process the RTC engine runs in. Login is a live
+        // signalling call reported through a completion block; with an unregistered App ID it
+        // answers an error, which is exactly what this demo shows — the round trip, credentials
+        // or not. The façade's Net.Agora.Signaling wraps this into awaitable calls.
+        var config = new AgoraRtmClientConfig(appId, "net-agora-sample");
+        var rtm = new AgoraRtmClientKit(config, del: null, out var error);
+        if (rtm.Handle == ObjCRuntime.NativeHandle.Zero)
+        {
+            Append($"RTM rejected the configuration: {error?.LocalizedDescription}");
+            return;
+        }
+
+        Append("RTM created — logging in…");
+        rtm.Login(appId, (response, errorInfo) => MainThread.BeginInvokeOnMainThread(() =>
+        {
+            Append(errorInfo is null || errorInfo.ErrorCode == 0
+                ? "RTM login succeeded"
+                : $"RTM login answered: {errorInfo.Reason}");
+            rtm.Destroy();
+        }));
     }
 
     private void Append(string message) => MainThread.BeginInvokeOnMainThread(() =>

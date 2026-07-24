@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Net.Agora.Sample.Voice.iOS.MainPage"
+             Title="Net.Agora.Voice.iOS">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Padding="16" RowSpacing="12">
+
+        <VerticalStackLayout Grid.Row="0" Spacing="8">
+            <Entry x:Name="AppIdEntry" Placeholder="Agora App ID" />
+            <Entry x:Name="ChannelIdEntry" Placeholder="channel id" />
+            <Entry x:Name="TokenEntry" Placeholder="token (optional — App ID-only auth is testing-only)" />
+        </VerticalStackLayout>
+
+        <HorizontalStackLayout Grid.Row="1" Spacing="8" HorizontalOptions="Center">
+            <Button x:Name="JoinButton" Text="Join" Clicked="OnJoinClicked" />
+            <Button x:Name="LeaveButton" Text="Leave" Clicked="OnLeaveClicked" IsEnabled="False" />
+        </HorizontalStackLayout>
+
+        <HorizontalStackLayout Grid.Row="2" Spacing="24" HorizontalOptions="Center">
+            <HorizontalStackLayout Spacing="4">
+                <Label Text="Mute" VerticalOptions="Center" />
+                <Switch x:Name="MuteSwitch" Toggled="OnMuteToggled" IsEnabled="False" />
+            </HorizontalStackLayout>
+            <HorizontalStackLayout Spacing="4">
+                <Label Text="Speaker" VerticalOptions="Center" />
+                <Switch x:Name="SpeakerSwitch" Toggled="OnSpeakerToggled" />
+            </HorizontalStackLayout>
+        </HorizontalStackLayout>
+
+        <Label Grid.Row="3"
+               x:Name="SpeakersLabel"
+               Text="nobody is speaking"
+               FontAttributes="Italic"
+               HorizontalOptions="Center" />
+
+        <ScrollView Grid.Row="4" x:Name="StatusScroll">
+            <Label x:Name="StatusLabel" FontSize="12" />
+        </ScrollView>
+
+    </Grid>
+
+</ContentPage>
