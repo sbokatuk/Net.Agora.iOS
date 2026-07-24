@@ -44,9 +44,9 @@ case "$VERSION" in
         ;;
 esac
 
-expected=$(sed -n "s/^$VERSION[[:space:]]\{1,\}\([0-9a-f]\{64\}\).*/\1/p" "$CHECKSUMS" | head -1)
+expected=$(sed -n "s/^AgoraRtcEngine_iOS-$VERSION[[:space:]]\{1,\}\([0-9a-f]\{64\}\).*/\1/p" "$CHECKSUMS" | head -1)
 if [ -z "$expected" ]; then
-    echo "error: no SHA-256 recorded for $VERSION in $CHECKSUMS" >&2
+    echo "error: no SHA-256 recorded for AgoraRtcEngine_iOS-$VERSION in $CHECKSUMS" >&2
     echo "       see the instructions at the top of that file for how to add one" >&2
     exit 1
 fi

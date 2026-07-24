@@ -18,22 +18,22 @@ public class PackageLayoutTests
     private const string PayloadTargetFramework = "net8.0-ios18.0";
 
     [Theory]
-    [MemberData(nameof(Packages.Frameworks), MemberType = typeof(Packages))]
-    public void Video_carries_a_binding_assembly_for_every_target_framework(string tfm)
+    [MemberData(nameof(Packages.PackageFrameworks), MemberType = typeof(Packages))]
+    public void Package_carries_a_binding_assembly_for_every_target_framework(string packageId, string tfm)
     {
-        using var package = Packages.OpenPackage(Packages.Video);
+        using var package = Packages.OpenPackage(packageId);
 
-        var expected = $"lib/{tfm}/{Packages.Video}.dll";
-        Assert.True(package.GetEntry(expected) is not null, $"{Packages.Video} is missing '{expected}'.");
+        var expected = $"lib/{tfm}/{packageId}.dll";
+        Assert.True(package.GetEntry(expected) is not null, $"{packageId} is missing '{expected}'.");
     }
 
     [Theory]
-    [MemberData(nameof(Packages.Frameworks), MemberType = typeof(Packages))]
-    public void Video_carries_the_native_payload_for_every_target_framework(string tfm)
+    [MemberData(nameof(Packages.PackageFrameworks), MemberType = typeof(Packages))]
+    public void Package_carries_the_native_payload_for_every_target_framework(string packageId, string tfm)
     {
-        using var package = Packages.OpenPackage(Packages.Video);
+        using var package = Packages.OpenPackage(packageId);
 
-        var entry = package.GetEntry(Packages.ResourcesEntry(Packages.Video, tfm));
+        var entry = package.GetEntry(Packages.ResourcesEntry(packageId, tfm));
 
         // The payload must be a single .resources.zip rather than a .resources directory. The
         // iOS SDK emits the directory form unless CompressBindingResourcePackage is set, which
@@ -41,36 +41,39 @@ public class PackageLayoutTests
         // comment in src/Agora.Binding.props.
         Assert.True(
             entry is not null,
-            $"{Packages.Video} is missing '{Packages.ResourcesEntry(Packages.Video, tfm)}'. " +
+            $"{packageId} is missing '{Packages.ResourcesEntry(packageId, tfm)}'. " +
             "Has CompressBindingResourcePackage been unset?");
 
         // The native payload is tens of megabytes even compressed — AgoraRtcKit alone dwarfs the
-        // floor. Anything near it means an empty placeholder was packed.
+        // floor, in the voice build too. Anything near it means an empty placeholder was packed.
         Assert.True(entry!.Length > 10_000_000, $"'{entry.FullName}' is only {entry.Length} bytes.");
     }
 
     [Theory]
-    [MemberData(nameof(Packages.Frameworks), MemberType = typeof(Packages))]
-    public void Video_ships_every_xcframework_beside_the_binding_assembly(string tfm)
+    [MemberData(nameof(Packages.PackageFrameworks), MemberType = typeof(Packages))]
+    public void Package_ships_every_xcframework_beside_the_binding_assembly(string packageId, string tfm)
     {
-        // All six are dynamic frameworks, so none can be linked into the assembly itself — see
-        // the NativeReference comment in Net.Agora.Video.iOS.csproj. If one goes missing, every
-        // consumer breaks at the app's link step — or, for video_dec, at launch, since nothing
-        // links it but AgoraRtcKit's own binary loads it — which no other test here would catch.
-        var names = Packages.NativePayload(Packages.Video, tfm);
+        // All of these are dynamic frameworks, so none can be linked into the assembly itself —
+        // see the NativeReference comments in each binding's csproj. If one goes missing, every
+        // consumer breaks at the app's link step — or, for Video's video_dec, at launch, since
+        // nothing links it but AgoraRtcKit's own binary loads it — which no other test here would
+        // catch. The expected list is per package: the voice build of AgoraRtcKit deliberately
+        // carries no video codec.
+        var names = Packages.NativePayload(packageId, tfm);
 
-        Assert.True(names.Count > 0, $"{Packages.Video} carries no native payload for {tfm}.");
+        Assert.True(names.Count > 0, $"{packageId} carries no native payload for {tfm}.");
 
-        foreach (var framework in Packages.ExpectedXcFrameworks)
+        foreach (var framework in Packages.XcFrameworksOf(packageId))
         {
             Assert.Contains(names, n => n.Contains($"{framework}.xcframework/", StringComparison.Ordinal));
         }
     }
 
-    [Fact]
-    public void Native_payload_is_the_same_across_target_frameworks()
+    [Theory]
+    [MemberData(nameof(Packages.PackageIds), MemberType = typeof(Packages))]
+    public void Native_payload_is_the_same_across_target_frameworks(string packageId)
     {
-        using var package = Packages.OpenPackage(Packages.Video);
+        using var package = Packages.OpenPackage(packageId);
 
         // net8/net9 are packed by the .NET 9 SDK and net10 by the .NET 10 one, and
         // merge-packages.py then grafts the net10 lib/ tree into the other package. Nothing in
@@ -84,7 +87,7 @@ public class PackageLayoutTests
         foreach (var tfm in Packages.TargetFrameworks)
         {
             // Opened and released one at a time — three payloads at once would be hundreds of MB.
-            using var payload = Packages.OpenNativePayload(package, Packages.Video, tfm);
+            using var payload = Packages.OpenNativePayload(package, packageId, tfm);
             manifests.Add((tfm, payload.Entries
                 .Select(e => (e.FullName, e.Length))
                 .OrderBy(e => e.FullName, StringComparer.Ordinal)
@@ -96,22 +99,23 @@ public class PackageLayoutTests
         {
             Assert.True(
                 reference.Entries.SequenceEqual(entries),
-                $"The native payload for {tfm} differs from {reference.Tfm} in {Packages.Video}.");
+                $"The native payload for {tfm} differs from {reference.Tfm} in {packageId}.");
         }
     }
 
-    [Fact]
-    public void Native_payload_carries_ios_slices_only()
+    [Theory]
+    [MemberData(nameof(Packages.PackageIds), MemberType = typeof(Packages))]
+    public void Native_payload_carries_ios_slices_only(string packageId)
     {
-        using var package = Packages.OpenPackage(Packages.Video);
-        using var payload = Packages.OpenNativePayload(package, Packages.Video, PayloadTargetFramework);
+        using var package = Packages.OpenPackage(packageId);
+        using var payload = Packages.OpenNativePayload(package, packageId, PayloadTargetFramework);
 
-        foreach (var framework in Packages.ExpectedXcFrameworks)
+        foreach (var framework in Packages.XcFrameworksOf(packageId))
         {
             var slices = SlicesOf(payload, framework);
 
             // Device and simulator, and nothing else. Agora ships no macOS or Mac Catalyst slice
-            // for this SDK (see fetch-video.sh), so one appearing here would mean the fetch
+            // for these SDKs (see the fetch scripts), so one appearing here would mean the fetch
             // staged something new and the package silently grew. Checked by shape rather than by
             // name so an upstream slice rename does not break the suite.
             Assert.All(slices, slice => Assert.True(
@@ -123,13 +127,14 @@ public class PackageLayoutTests
         }
     }
 
-    [Fact]
-    public void Xcframework_manifests_match_the_slices_actually_shipped()
+    [Theory]
+    [MemberData(nameof(Packages.PackageIds), MemberType = typeof(Packages))]
+    public void Xcframework_manifests_match_the_slices_actually_shipped(string packageId)
     {
-        using var package = Packages.OpenPackage(Packages.Video);
-        using var payload = Packages.OpenNativePayload(package, Packages.Video, PayloadTargetFramework);
+        using var package = Packages.OpenPackage(packageId);
+        using var payload = Packages.OpenNativePayload(package, packageId, PayloadTargetFramework);
 
-        foreach (var framework in Packages.ExpectedXcFrameworks)
+        foreach (var framework in Packages.XcFrameworksOf(packageId))
         {
             var manifest = payload.GetEntry($"{framework}.xcframework/Info.plist");
             Assert.True(manifest is not null, $"{framework}.xcframework has no Info.plist.");

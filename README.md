@@ -7,18 +7,27 @@
 
 .NET for iOS and .NET MAUI bindings for Agora's native iOS SDKs.
 
-Only **Video** (RTC) is bound today. Join a channel and publish/subscribe audio and video from C#,
-in a `net8.0-ios`, `net9.0-ios` or `net10.0-ios` app.
+Two products are bound, from `net8.0-ios` through `net10.0-ios`:
+
+| Package | Native pod | Use it when |
+| --- | --- | --- |
+| `Net.Agora.Video.iOS` | [`AgoraRtcEngine_iOS`](https://cocoapods.org/pods/AgoraRtcEngine_iOS) | The app shows or sends video (also carries the full audio surface). |
+| `Net.Agora.Voice.iOS` | [`AgoraAudio_iOS`](https://cocoapods.org/pods/AgoraAudio_iOS) | Audio only — the same engine built without the video pipeline, one fewer framework and a markedly smaller payload. |
 
 ```bash
-dotnet add package Net.Agora.Video.iOS
+dotnet add package Net.Agora.Video.iOS   # or Net.Agora.Voice.iOS
 ```
 
-This is a raw platform binding — the full generated/hand-written surface, `AgoraRtcEngineKit` and
-friends, under the `Net.Agora.Video.iOS` namespace. Most apps want the cross-platform client
-instead: [`Net.Agora.Video`](https://github.com/sbokatuk/Net.Agora), which wraps this package and
-its Android sibling behind one API. Reach for this package directly only when you need something
-the cross-platform client does not expose.
+Pick **one**: both pods ship a framework named `AgoraRtcKit`, so referencing both packages
+collides at bundle time — mirroring Agora's own pods. The bindings' namespaces follow the package
+(`Net.Agora.Video.iOS` / `Net.Agora.Voice.iOS`).
+
+These are raw platform bindings — hand-written surfaces over `AgoraRtcEngineKit`, scoped to what
+the cross-platform clients need: engine lifecycle, join/leave, publish/mute, audio routing,
+volume indication, token renewal and connection state, plus the camera surface in Video. Most apps want the cross-platform clients instead:
+[`Net.Agora.Video` / `Net.Agora.Voice`](https://github.com/sbokatuk/Net.Agora), which wrap these
+packages and their Android siblings behind one API. Reach for a binding directly only when you
+need something the cross-platform client does not expose.
 
 ```csharp
 using Net.Agora.Video.iOS;
@@ -34,12 +43,13 @@ engine.JoinChannel(token: null, channelId: "my-channel", info: null, uid: 0, joi
 
 ## How this repository works
 
-This repository binds nothing but the Video (RTC) SDK today, and it is the *only* thing that binds
-it: [`Net.Agora`](https://github.com/sbokatuk/Net.Agora) (the cross-platform façade) and
+This repository is the *only* thing that binds Agora's iOS SDKs:
+[`Net.Agora`](https://github.com/sbokatuk/Net.Agora) (the cross-platform façade) and
 [`Net.Agora.Android`](https://github.com/sbokatuk/Net.Agora.Android) (the Android binding) are
-separate repositories, each with their own release cadence. `Net.Agora.Video.iOS`'s version is
-`<AgoraRtcEngine_iOS pod version>.<binding revision>` — see `Directory.Build.props` for why the iOS
-and Android lines don't share a version number.
+separate repositories, each with their own release cadence. Each package's version is
+`<pod version>.<binding revision>` — see `Directory.Build.props` for why the iOS and Android lines
+don't share a version number. The package set lives in `build/packages.tsv`; adding a package
+means adding a row there, a project under `src/`, and a fetch script under `build/`.
 
 ### What is bound, and why by hand
 
@@ -63,11 +73,12 @@ callbacks. Extend it by reading more of the same headers as more of the SDK is n
 
 ```sh
 ./build/fetch-video.sh            # downloads + SHA-256-verifies the xcframeworks into src/Net.Agora.Video.iOS/lib
+./build/fetch-voice.sh            # same, for Net.Agora.Voice.iOS
 ./build/BuildNugets.sh            # packs into ./artifacts
 dotnet test tests/Net.Agora.iOS.PackageTests
 ```
 
-`fetch-video.sh` refuses to proceed if the downloaded archive's hash doesn't match
+The fetch scripts refuse to proceed if the downloaded archive's hash doesn't match
 `build/checksums.txt` — see that file for how to record a new version's hash.
 
 No single .NET SDK builds net8, net9 *and* net10 for iOS, so `BuildNugets.sh` packs twice (the
@@ -76,10 +87,12 @@ see `build/merge-packages.py`.
 
 ## Tests
 
-**Package tests** run anywhere and inspect the packed `.nupkg` — a binding assembly and a native
-payload for every target framework, all six xcframeworks present, the payload logically identical
-across target frameworks (which is what would catch a mismatched net10 merge graft), iOS device
-and simulator slices only, and manifests consistent with the slices actually shipped:
+**Package tests** run anywhere and inspect both packed `.nupkg`s — a binding assembly and a native
+payload for every target framework, every expected xcframework present (six for Video, five for
+Voice — the voice build of AgoraRtcKit links no video codec, which is the point), the payload
+logically identical across target frameworks (which is what would catch a mismatched net10 merge
+graft), iOS device and simulator slices only, and manifests consistent with the slices actually
+shipped:
 
 ```sh
 ./build/BuildNugets.sh                       # produce ./artifacts first
@@ -97,13 +110,18 @@ join path):
 
 ```sh
 ./.github/scripts/run-simulator-tests.sh 4.6.2.1 net10.0-ios26.0
+./.github/scripts/run-simulator-tests.sh 4.6.2.1 net10.0-ios26.0 Voice
 ```
+
+One package per run — both ship a framework named `AgoraRtcKit`, so a single app holds one of
+them. The Voice flavour swaps the video checks for the audio-route/volume-indication surface that
+binding adds.
 
 ## CI
 
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
-| [`pr.yml`](.github/workflows/pr.yml) | pull request | Packs `Net.Agora.Video.iOS` as `<version>-beta.<pr>.<run>`, runs the package tests, builds the MAUI sample against the packed package, runs the simulator smoke tests (net8 and net10 legs in parallel), then publishes the beta to nuget.org. Forked PRs build and test but skip publishing, since they cannot read secrets. |
+| [`pr.yml`](.github/workflows/pr.yml) | pull request | Packs every package in `build/packages.tsv` as `<version>-beta.<pr>.<run>`, runs the package tests, builds the MAUI sample against the packed package, runs the simulator smoke tests (per package, net8 and net10 legs in parallel), then publishes the betas to nuget.org. Forked PRs build and test but skip publishing, since they cannot read secrets. |
 | [`release.yml`](.github/workflows/release.yml) | tag `v*` | Same build and tests at the tag's version, publishes to nuget.org, then creates a GitHub release — from `docs/release-notes/<version>.md` when a curated file exists, otherwise from the commit log since the previous tag. |
 
 Both call the reusable [`build.yml`](.github/workflows/build.yml), whose pack, sample and e2e jobs

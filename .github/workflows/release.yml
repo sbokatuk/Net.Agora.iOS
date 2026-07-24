@@ -117,11 +117,12 @@ jobs:
             echo
             echo "## Packages"
             echo
-            echo "Bound against AgoraRtcEngine_iOS \`${AGORA_VIDEO_IOS_VERSION}\` (CocoaPods trunk)."
+            echo "Bound against AgoraRtcEngine_iOS \`${AGORA_VIDEO_IOS_VERSION}\` and AgoraAudio_iOS \`${AGORA_VOICE_IOS_VERSION}\` (CocoaPods trunk)."
             echo
             echo "| Package | NuGet |"
             echo "| --- | --- |"
             echo "| \`Net.Agora.Video.iOS\` | [${VERSION}](https://www.nuget.org/packages/Net.Agora.Video.iOS/${VERSION}) |"
+            echo "| \`Net.Agora.Voice.iOS\` | [${VERSION}](https://www.nuget.org/packages/Net.Agora.Voice.iOS/${VERSION}) |"
           } > release-notes.md
 
           cat release-notes.md >> "$GITHUB_STEP_SUMMARY"

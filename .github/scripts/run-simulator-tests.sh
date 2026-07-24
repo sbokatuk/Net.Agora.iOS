@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Builds the device test app against the packed Net.Agora.Video.iOS package, installs it on an iOS
-# simulator and runs its checks. The app prints its verdict to stdout; this script turns that into
-# an exit code. Adapted from the façade repository's .github/scripts/run-simulator-tests.sh — the
-# device tests print the same AGORA_E2E_DONE marker, so the two scripts stay greppable for the
+# Builds the device test app against a packed Net.Agora.<PACKAGE>.iOS package, installs it on an
+# iOS simulator and runs its checks. The app prints its verdict to stdout; this script turns that
+# into an exit code. Adapted from the façade repository's .github/scripts/run-simulator-tests.sh —
+# the device tests print the same AGORA_E2E_DONE marker, so the two scripts stay greppable for the
 # same line.
 #
-# Usage: run-simulator-tests.sh VERSION [TARGET_FRAMEWORK]
+# Usage: run-simulator-tests.sh VERSION [TARGET_FRAMEWORK] [PACKAGE]
+#
+# PACKAGE is the packages.tsv id — Video (default) or Voice. One run exercises one package: both
+# ship a framework named AgoraRtcKit, so a single app holds exactly one of them.
 
 VERSION="${1:?a package version is required}"
 TARGET_FRAMEWORK="${2:-net10.0-ios26.0}"
+PACKAGE="${3:-Video}"
 
 BUNDLE_ID="com.sbokatuk.agora.ios.devicetests"
 LOG_FILE="simulator-tests.log"
@@ -42,8 +46,13 @@ printf '{ "sdk": { "version": "%s", "rollForward": "latestFeature" } }\n' "${sdk
 
 # NuGet caches by package id + version, so rebuilding a version that was already restored once
 # silently reuses the stale copy. CI versions are unique, but locally you will re-pack the same
-# version repeatedly and test yesterday's bits without this.
-rm -rf "${HOME}/.nuget/packages/net.agora.video.ios/${VERSION}"
+# version repeatedly and test yesterday's bits without this. Driven by packages.tsv so a package
+# added there is purged here without a second edit.
+while IFS=$'\t' read -r name _rest; do
+    case "${name}" in ''|\#*) continue ;; esac
+    lower="$(printf '%s' "${name}" | tr '[:upper:]' '[:lower:]')"
+    rm -rf "${HOME}/.nuget/packages/net.agora.${lower}.ios/${VERSION}"
+done < "${REPO_ROOT}/build/packages.tsv"
 
 # The app's own intermediate output has to go too, not just the NuGet cache. The native payload is
 # extracted out of the package into obj/ and copied into the .app, and neither step re-runs when
@@ -54,14 +63,15 @@ rm -rf "${HOME}/.nuget/packages/net.agora.video.ios/${VERSION}"
 rm -rf "${REPO_ROOT}/tests/Net.Agora.iOS.DeviceTests/obj" \
        "${REPO_ROOT}/tests/Net.Agora.iOS.DeviceTests/bin"
 
-echo "==> building device tests (version=${VERSION}, tfm=${TARGET_FRAMEWORK}, sdk=${sdk_version})"
+echo "==> building device tests (package=Net.Agora.${PACKAGE}.iOS, version=${VERSION}, tfm=${TARGET_FRAMEWORK}, sdk=${sdk_version})"
 # Debug, not Release — the same call the sample build makes, and for the same reason: a Release
 # build AOT-compiles and links every assembly, which costs real runner time for no additional
 # signal on whether the package restores, resolves and links correctly — which is what this suite
 # verifies.
 ( cd "${SDK_DIR}" && dotnet build "${PROJECT}" \
     --configuration Debug \
-    -p:AgoraVideoPackageVersion="${VERSION}" \
+    -p:AgoraDevicePackage="${PACKAGE}" \
+    -p:AgoraDevicePackageVersion="${VERSION}" \
     -p:AgoraDeviceTargetFramework="${TARGET_FRAMEWORK}" \
     -p:RuntimeIdentifier="${SIMULATOR_RID}" )
 

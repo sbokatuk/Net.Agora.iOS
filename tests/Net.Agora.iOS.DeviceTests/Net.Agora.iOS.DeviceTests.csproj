@@ -2,11 +2,21 @@
 
   <PropertyGroup>
     <!--
-      Which of the package's target frameworks to exercise. Overriding TargetFramework directly
-      on the command line breaks restore, so it goes through a property of our own.
+      Which package to exercise (Video or Voice) and which of its target frameworks. Both go
+      through properties of our own: overriding TargetFramework directly on the command line
+      breaks restore, and the two packages cannot be referenced together — both ship a framework
+      named AgoraRtcKit, so one app holds one of them.
     -->
+    <AgoraDevicePackage Condition=" '$(AgoraDevicePackage)' == '' ">Video</AgoraDevicePackage>
     <AgoraDeviceTargetFramework Condition=" '$(AgoraDeviceTargetFramework)' == '' ">net9.0-ios18.0</AgoraDeviceTargetFramework>
     <TargetFramework>$(AgoraDeviceTargetFramework)</TargetFramework>
+    <!--
+      The voice pod ships the same AgoraRtcKit framework name with the video pipeline stripped
+      from the binary, and the Voice binding deliberately does not bind the video entry points.
+      The smoke tests compile per flavour — different using, different framework list, different
+      checks — rather than probing at runtime, so every remaining assertion stays strict.
+    -->
+    <DefineConstants Condition=" '$(AgoraDevicePackage)' == 'Voice' ">$(DefineConstants);AGORA_VOICE</DefineConstants>
     <OutputType>Exe</OutputType>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -46,7 +56,8 @@
     prove nothing about. See NuGet.config for the local feed.
   -->
   <PropertyGroup>
-    <AgoraVideoPackageVersion Condition=" '$(AgoraVideoPackageVersion)' == '' ">$(VersionPrefix)</AgoraVideoPackageVersion>
+    <AgoraDevicePackageVersion Condition=" '$(AgoraDevicePackageVersion)' == '' And '$(AgoraDevicePackage)' == 'Voice' ">$(AgoraVoiceIosVersion).$(AgoraVoiceBindingRevision)</AgoraDevicePackageVersion>
+    <AgoraDevicePackageVersion Condition=" '$(AgoraDevicePackageVersion)' == '' ">$(VersionPrefix)</AgoraDevicePackageVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -54,7 +65,7 @@
       Exact version, in brackets — a bare version is a *minimum* to NuGet, so a build missing from
       artifacts/ would silently resolve from nuget.org instead of failing the restore.
     -->
-    <PackageReference Include="Net.Agora.Video.iOS" Version="[$(AgoraVideoPackageVersion)]" />
+    <PackageReference Include="Net.Agora.$(AgoraDevicePackage).iOS" Version="[$(AgoraDevicePackageVersion)]" />
   </ItemGroup>
 
   <ItemGroup>
