@@ -204,6 +204,10 @@ jobs:
             --configuration Debug \
             -p:RuntimeIdentifier=iossimulator-arm64 \
             -p:AgoraVoicePackageVersion="${AGORA_VOICE_PACKAGE_VERSION}${s}"
+          dotnet build samples/Net.Agora.Sample.Signaling.iOS \
+            --configuration Debug \
+            -p:RuntimeIdentifier=iossimulator-arm64 \
+            -p:AgoraSignalingPackageVersion="${AGORA_SIGNALING_PACKAGE_VERSION}${s}"
 
   e2e:
     name: simulator smoke test (${{ matrix.package }}, ${{ matrix.target-framework }})

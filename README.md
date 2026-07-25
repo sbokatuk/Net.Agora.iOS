@@ -154,6 +154,10 @@ coexistence of the two products, proven at bundle time just by building.
 join, mute, speakerphone routing and the who-is-speaking volume reports, with no camera
 permission anywhere.
 
+`samples/Net.Agora.Sample.Signaling.iOS` drives `AgoraRtmClientKit` on its own — a tiny chat room
+(log in, subscribe, publish, receive) over the raw Objective-C completion-block surface, to show
+what the façade hides.
+
 Both are the same flows as the façade repo's cross-platform MAUI samples, built straight against
 these packages with no façade in between — proof they are consumable end to end.
 
