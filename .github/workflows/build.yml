@@ -73,7 +73,7 @@ jobs:
           path: src/*/lib
           key: agora-ios-xcframeworks-${{ hashFiles('Directory.Build.props', 'build/checksums.txt') }}
 
-      - name: Fetch the Agora iOS SDKs
+      - name: Fetch and build the Agora iOS SDKs
         if: steps.xcframeworks.outputs.cache-hit != 'true'
         run: |
           ./build/fetch-video.sh
@@ -81,6 +81,13 @@ jobs:
           ./build/fetch-signaling.sh
           ./build/fetch-chat.sh
           ./build/fetch-extensions.sh
+          # Whiteboard and Fastboard have no prebuilt binary to fetch — netless ships CocoaPods
+          # source pods — so these clone a pinned commit and xcodebuild an xcframework from it.
+          # They are slow (an archive per platform, then -create-xcframework), which is what the
+          # cache above exists for: on a hit this whole step is skipped, and the cache key covers
+          # their pins (Directory.Build.props + the git: commit lines in build/checksums.txt).
+          ./build/build-whiteboard.sh
+          ./build/build-fastboard.sh
 
       - name: Pack
         run: |
