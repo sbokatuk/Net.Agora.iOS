@@ -39,6 +39,21 @@
       it declares AgoraInfra_iOS as a dependency, so the fetch script downloads two archives and
       that pod's version is pinned separately here.
     -->
+    <!--
+      Whiteboard is netless's, not Agora's own: Agora acquired the product and still documents it,
+      but the source and the releases are netless-io's. Its iOS line runs ahead of the Android one
+      (2.16.137 vs 2.16.123) — they are separate repositories with separate release cadences, so
+      unlike the RTC products there is no reason to expect them to meet.
+    -->
+    <AgoraWhiteboardIosVersion>2.16.137</AgoraWhiteboardIosVersion>
+    <AgoraWhiteboardBindingRevision>1</AgoraWhiteboardBindingRevision>
+    <!--
+      Fastboard is netless's UI layer over the Interactive Whiteboard, on its own line. Unlike every
+      other product here it is Swift, so what this repository binds is not the SDK but the
+      Objective-C shim in native/AgoraFastboardBridge — see build/build-fastboard.sh.
+    -->
+    <AgoraFastboardIosVersion>1.4.5</AgoraFastboardIosVersion>
+    <AgoraFastboardBindingRevision>1</AgoraFastboardBindingRevision>
     <AgoraChatIosVersion>1.4.0</AgoraChatIosVersion>
     <AgoraChatInfraIosVersion>1.3.5</AgoraChatInfraIosVersion>
     <AgoraChatBindingRevision>1</AgoraChatBindingRevision>

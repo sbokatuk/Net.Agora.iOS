@@ -1,0 +1,100 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AgoraPackageName>Whiteboard</AgoraPackageName>
+    <!--
+      No NoBindingEmbedding here, unlike the other bindings, but the effect is the same: the .NET
+      iOS SDK has not embedded native payload in the assembly since .NET 6 regardless, so this
+      project's static library travels in <Assembly>.resources.zip like everyone else's dynamic
+      frameworks. The others set the property to say so explicitly because they *must* not embed;
+      this one simply has no reason to.
+    -->
+    <Nullable>enable</Nullable>
+    <!--
+      CS0114: WhiteMemberState redeclares four of WhiteReadonlyMemberState's read-only properties
+      as read-write, which is what the header does. The generated code hides rather than overrides
+      them, correctly — they differ by accessor, not by signature.
+    -->
+    <NoWarn>$(NoWarn);CS0114</NoWarn>
+    <VersionPrefix>$(AgoraWhiteboardIosVersion).$(AgoraWhiteboardBindingRevision)</VersionPrefix>
+  </PropertyGroup>
+
+  <Import Project="../Agora.Binding.props" />
+
+  <Target Name="ValidateAgoraXcframeworks" BeforeTargets="Build;Pack"
+          Condition="!Exists('$(MSBuildProjectDirectory)/lib/Whiteboard.xcframework')">
+    <Error Text="lib/Whiteboard.xcframework is missing. Run build/build-whiteboard.sh first." />
+  </Target>
+
+  <Target Name="ValidateAgoraWhiteboardBundle" BeforeTargets="Build;Pack"
+          Condition="!Exists('$(MSBuildProjectDirectory)/lib/Whiteboard_Whiteboard.bundle')">
+    <Error Text="lib/Whiteboard.bundle is missing — the board would render blank. Run build/build-whiteboard.sh first." />
+  </Target>
+
+  <ItemGroup>
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+    <ObjcBindingCoreSource Include="StructsAndEnums.cs" />
+  </ItemGroup>
+
+  <!--
+    ForceLoad, because the SDK's Objective-C categories would otherwise be dropped by the linker —
+    the classic static-library failure, and one that shows up as an unrecognised selector at
+    runtime rather than as a link error.
+
+    The frameworks list is what the source actually links against: WebKit for the board itself,
+    AVFoundation for the audio a converted document can carry, and the rest for the SDK's own
+    networking and rendering.
+  -->
+  <ItemGroup>
+    <!--
+      Kind=Static, not Framework, even though this is an .xcframework: what is inside it is a
+      static library, and Kind is about the payload rather than the container. With Framework the
+      linker takes the slice directory for a framework name and fails with
+      "ld: framework 'ios-arm64_x86_64-simulator' not found".
+    -->
+    <NativeReference Include="lib/Whiteboard.xcframework">
+      <Kind>Static</Kind>
+      <ForceLoad>True</ForceLoad>
+      <SmartLink>False</SmartLink>
+      <Frameworks>WebKit AVFoundation CoreGraphics CoreText</Frameworks>
+    </NativeReference>
+  </ItemGroup>
+
+  <!--
+    The board is a web app, and this bundle is the page it loads. Without it the view comes up
+    blank with no error at all, which is the single most confusing way this package could fail —
+    so it ships inside the package rather than being left to the consumer to find.
+
+    It cannot travel as a @(BundleResource) of this project: a binding project packs its assembly
+    and its native payload and nothing else, so the bundle would build into this project's own
+    (never-shipped) output and vanish. Instead it is packed as plain content and re-declared as a
+    @(BundleResource) in the consuming app by the .targets file below, which NuGet imports
+    automatically.
+
+    The directory name is SwiftPM's, not ours: the library finds the bundle through SwiftPM's
+    generated module-bundle finder, which looks up "Whiteboard_Whiteboard.bundle" by that exact
+    string. See build/build-whiteboard.sh.
+  -->
+  <ItemGroup>
+    <!--
+      _CodeSignature is excluded: it is the signature of the bundle as Xcode built it, which stops
+      being true the moment the consuming app re-signs its own bundle, and the duplicated
+      RecursiveDir in its paths makes it unpack wrong anyway.
+    -->
+    <None Include="lib/Whiteboard_Whiteboard.bundle/**/*"
+          Exclude="lib/Whiteboard_Whiteboard.bundle/_CodeSignature/**/*"
+          Pack="true"
+          PackagePath="whiteboard/Whiteboard_Whiteboard.bundle/%(RecursiveDir)%(Filename)%(Extension)"
+          Visible="false" />
+    <None Include="build/Net.Agora.Whiteboard.iOS.targets"
+          Pack="true"
+          PackagePath="buildTransitive/Net.Agora.Whiteboard.iOS.targets"
+          Visible="false" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <Description>.NET for iOS / .NET MAUI bindings for the Agora Interactive Whiteboard iOS SDK (netless-io/Whiteboard-iOS $(AgoraWhiteboardIosVersion)). Lets a .NET app join a whiteboard room and draw on it. Built from source rather than fetched — netless publishes no prebuilt framework — and hand-written against the real headers; see ApiDefinition.cs for the bound surface.</Description>
+    <PackageTags>$(PackageTags);Whiteboard;drawing;collaboration</PackageTags>
+  </PropertyGroup>
+
+</Project>

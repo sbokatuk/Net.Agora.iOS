@@ -2,11 +2,17 @@
 
 set -e
 
-# Builds and packs every Agora iOS binding package listed in build/packages.tsv.
+# Builds and packs the Agora iOS binding packages listed in build/packages.tsv.
 #
 # Usage:
-#   ./build/BuildNugets.sh                       # each package at its own version (see below)
-#   ./build/BuildNugets.sh --suffix beta.12.34   # same, with a prerelease suffix appended
+#   ./build/BuildNugets.sh                       # every package, each at its own version (below)
+#   ./build/BuildNugets.sh --track chat          # only the packages on one release track
+#   ./build/BuildNugets.sh --suffix beta.12.34   # every package, with a prerelease suffix appended
+#   ./build/BuildNugets.sh --track rtc --suffix beta.12.34   # both, in either order
+#
+# --track scopes the pack to one release track (see build/tracks.tsv): a chat release builds only
+# the Chat package, not the whole repository. Releases pass it so a tag publishes only its own
+# track; omit it and every package is packed, which is what CI and the pull-request beta want.
 #
 # Each package packs at its own <VersionPrefix> from Directory.Build.props: the packages sit on
 # independent native version lines (RTC 4.6.x, RTM 2.2.x), so no single version can be stamped
@@ -27,17 +33,25 @@ set -e
 cd "$(dirname "$0")"
 
 SUFFIX=""
-case "${1:-}" in
-    "") ;;
-    --suffix)
-        SUFFIX="${2:?--suffix needs a value}"
-        ;;
-    *)
-        echo "error: unknown argument '$1' (a single version cannot be stamped across" >&2
-        echo "       independent version lines — use --suffix for prereleases)" >&2
-        exit 2
-        ;;
-esac
+TRACK=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --suffix)
+            SUFFIX="${2:?--suffix needs a value}"
+            shift 2
+            ;;
+        --track)
+            TRACK="${2:?--track needs a value}"
+            shift 2
+            ;;
+        *)
+            echo "error: unknown argument '$1' (a single version cannot be stamped across" >&2
+            echo "       independent version lines — use --suffix for prereleases, --track to" >&2
+            echo "       scope to one release track)" >&2
+            exit 2
+            ;;
+    esac
+done
 
 ROOT="$(cd .. && pwd)"
 OUTPUT="$ROOT/artifacts"
@@ -51,6 +65,39 @@ PACKAGES=$(grep -v '^#' packages.tsv | grep -v '^[[:space:]]*$' | cut -f1)
 if [ -z "$PACKAGES" ]; then
     echo "error: no packages found in build/packages.tsv" >&2
     exit 1
+fi
+
+# Scope to one track's packages when asked. The track's ids come from build/tracks.tsv, where a
+# trailing "*" is a prefix match (Extensions.* is the twelve extension packages).
+if [ -n "$TRACK" ]; then
+    PATTERNS=$(awk -F'	' -v t="$TRACK" '$1 == t { print $3 }' tracks.tsv)
+    if [ -z "$PATTERNS" ]; then
+        echo "error: unknown track '$TRACK' (not in build/tracks.tsv)" >&2
+        exit 2
+    fi
+
+    SELECTED=""
+    for package in $PACKAGES; do
+        for pattern in $PATTERNS; do
+            case "$pattern" in
+                *'*')
+                    prefix=${pattern%'*'}
+                    case "$package" in "$prefix"*) SELECTED="$SELECTED $package" ;; esac
+                    ;;
+                "$package")
+                    SELECTED="$SELECTED $package"
+                    ;;
+            esac
+        done
+    done
+
+    if [ -z "$SELECTED" ]; then
+        echo "error: track '$TRACK' matches no package in this repository" >&2
+        exit 1
+    fi
+
+    PACKAGES="$SELECTED"
+    echo "==> track '$TRACK':$PACKAGES"
 fi
 
 VERSION_ARG=""

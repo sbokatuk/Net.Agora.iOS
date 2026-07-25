@@ -1,8 +1,18 @@
 name: release
 
+# One tag releases one track. The packages sit on unrelated version lines (RTC 4.6.x, RTM 2.2.x,
+# Chat 1.4.x, IoT 1.3.x, Whiteboard 2.16.x, Fastboard 1.8.x), so a single tag that published all
+# of them would stamp a release note true of none. Each track has its own tag prefix — the main
+# RTC track a bare "v", every other its product name — and a tag builds and publishes only that
+# track. See build/tracks.tsv.
 on:
   push:
-    tags: ['v*']
+    tags:
+      - 'v*'
+      - 'signaling-v*'
+      - 'chat-v*'
+      - 'whiteboard-v*'
+      - 'fastboard-v*'
 
 concurrency:
   group: release-${{ github.ref_name }}
@@ -12,17 +22,38 @@ permissions:
   contents: read
 
 jobs:
-  # The tag is the release train's label, not a version to stamp: the packages sit on
-  # independent native version lines (RTC 4.6.x, RTM 2.2.x) and each publishes at its own pin
-  # from Directory.Build.props. Republishing a package whose pin did not move is a no-op — the
-  # push below uses --skip-duplicate.
+  # Which track does this tag release? resolve-track.sh maps the tag to a track by longest-prefix
+  # match, and errors on a tag that matches none — which stops a mistyped tag from publishing.
+  resolve:
+    name: resolve track
+    runs-on: ubuntu-latest
+    outputs:
+      track: ${{ steps.resolve.outputs.track }}
+      prefix: ${{ steps.resolve.outputs.prefix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: resolve
+        run: |
+          track=$(./build/resolve-track.sh "${GITHUB_REF_NAME}")
+          prefix=$(awk -F'\t' -v t="${track}" '$1 == t { print $2 }' build/tracks.tsv)
+          echo "track=${track}" >> "$GITHUB_OUTPUT"
+          echo "prefix=${prefix}" >> "$GITHUB_OUTPUT"
+          echo "==> ${GITHUB_REF_NAME} releases the '${track}' track" >&2
+
   build:
     name: build
+    needs: resolve
+    # track scopes the pack to this track's packages and skips validate/sample/e2e — the tagged
+    # commit was validated on its pull request. The tag is still only a label: each package packs
+    # at its own pin from Directory.Build.props, and the push below uses --skip-duplicate, so a
+    # package whose pin did not move is a no-op.
     uses: ./.github/workflows/build.yml
+    with:
+      track: ${{ needs.resolve.outputs.track }}
 
   publish:
     name: publish to nuget.org and create release
-    needs: [build]
+    needs: [resolve, build]
     runs-on: ubuntu-latest
     environment: nuget.org
     permissions:
@@ -50,6 +81,8 @@ jobs:
         with:
           user: ${{ secrets.NUGET_USER }}
 
+      # Only this track's packages were built, so this pushes only them. --skip-duplicate keeps a
+      # re-run, or a track whose pins did not all move, from erroring on an already-published one.
       - name: Push to nuget.org
         run: |
           dotnet nuget push "artifacts/*.nupkg" \
@@ -58,47 +91,37 @@ jobs:
             --skip-duplicate
 
       - name: Compose release notes
+        env:
+          PREFIX: ${{ needs.resolve.outputs.prefix }}
         run: |
-          . ./build/pins.sh
-          previous=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          # The previous tag on THIS track, for the changelog range — matched by the track's own
+          # prefix so a chat release compares against the previous chat tag, not the previous RTC
+          # one.
+          previous=$(git describe --tags --abbrev=0 --match "${PREFIX}*" "${GITHUB_REF_NAME}^" 2>/dev/null || true)
 
-          # A curated docs/release-notes/<version>.md replaces the generated commit list when one
-          # exists. The second lookup drops the prerelease suffix, so v4.6.2.1-beta.2 reuses the
-          # notes written for 4.6.2.1 rather than silently falling back to raw commit subjects.
-          # Tags are the train label, e.g. v4.6.2.2 for an RTC-led train.
-          notes="docs/release-notes/${GITHUB_REF_NAME#v}.md"
+          # The release notes are the curated docs/release-notes/<tag>.md — named by the full tag,
+          # so each track's file is unambiguous (v4.6.3.4.md, chat-v1.4.0.1.md). It carries its own
+          # package list, so nothing repo-wide is appended here. Without one, fall back to the
+          # commit range.
+          notes="docs/release-notes/${GITHUB_REF_NAME}.md"
 
           {
             if [ -f "${notes}" ]; then
               echo "==> using curated notes from ${notes}" >&2
               cat "${notes}"
-              echo
-              if [ -n "${previous}" ]; then
-                echo "**Full changelog**: ${{ github.server_url }}/${{ github.repository }}/compare/${previous}...${GITHUB_REF_NAME}"
-              fi
             else
               echo "## What's changed"
               echo
               if [ -n "${previous}" ]; then
                 git log --no-merges --pretty='- %s (%h)' "${previous}..${GITHUB_REF_NAME}"
-                echo
-                echo "**Full changelog**: ${{ github.server_url }}/${{ github.repository }}/compare/${previous}...${GITHUB_REF_NAME}"
               else
-                echo "Initial release."
+                echo "Initial release of the ${{ needs.resolve.outputs.track }} track."
               fi
             fi
-            echo
-            echo "## Packages"
-            echo
-            echo "Bound against AgoraRtcEngine_iOS \`${AGORA_VIDEO_IOS_VERSION}\`, AgoraAudio_iOS \`${AGORA_VOICE_IOS_VERSION}\`, AgoraRtm_iOS \`${AGORA_SIGNALING_IOS_VERSION}\` and Agora_Chat_iOS \`${AGORA_CHAT_IOS_VERSION}\` (CocoaPods trunk). Each package publishes at its own version line; a row whose version did not move since the previous train was skipped by the push, not republished."
-            echo
-            echo "| Package | NuGet |"
-            echo "| --- | --- |"
-            echo "| \`Net.Agora.Video.iOS\` | [${AGORA_VIDEO_PACKAGE_VERSION}](https://www.nuget.org/packages/Net.Agora.Video.iOS/${AGORA_VIDEO_PACKAGE_VERSION}) |"
-            echo "| \`Net.Agora.Voice.iOS\` | [${AGORA_VOICE_PACKAGE_VERSION}](https://www.nuget.org/packages/Net.Agora.Voice.iOS/${AGORA_VOICE_PACKAGE_VERSION}) |"
-            echo "| \`Net.Agora.Signaling.iOS\` | [${AGORA_SIGNALING_PACKAGE_VERSION}](https://www.nuget.org/packages/Net.Agora.Signaling.iOS/${AGORA_SIGNALING_PACKAGE_VERSION}) |"
-            echo "| \`Net.Agora.Chat.iOS\` | [${AGORA_CHAT_PACKAGE_VERSION}](https://www.nuget.org/packages/Net.Agora.Chat.iOS/${AGORA_CHAT_PACKAGE_VERSION}) |"
-            echo "| \`Net.Agora.Extensions.*.iOS\` (12) | [${AGORA_VIDEO_PACKAGE_VERSION}](https://www.nuget.org/packages?q=Net.Agora.Extensions) |"
+            if [ -n "${previous}" ]; then
+              echo
+              echo "**Full changelog**: ${{ github.server_url }}/${{ github.repository }}/compare/${previous}...${GITHUB_REF_NAME}"
+            fi
           } > release-notes.md
 
           cat release-notes.md >> "$GITHUB_STEP_SUMMARY"
@@ -108,5 +131,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${GITHUB_REF_NAME}" \
-            --title "${GITHUB_REF_NAME#v}" \
+            --title "${GITHUB_REF_NAME}" \
             --notes-file release-notes.md

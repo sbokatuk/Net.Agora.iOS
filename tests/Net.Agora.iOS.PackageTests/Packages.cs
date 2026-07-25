@@ -9,6 +9,8 @@ public static class Packages
     public const string Voice = "Net.Agora.Voice.iOS";
     public const string Signaling = "Net.Agora.Signaling.iOS";
     public const string Chat = "Net.Agora.Chat.iOS";
+    public const string Whiteboard = "Net.Agora.Whiteboard.iOS";
+    public const string Fastboard = "Net.Agora.Fastboard.iOS";
 
     /// <summary>
     /// Every package build/packages.tsv lists, with the xcframeworks it ships: the API surface
@@ -35,7 +37,24 @@ public static class Packages
         // Chat is smaller still, and the only product whose aosl comes from a second archive
         // (AgoraInfra_iOS) rather than from the SDK zip itself — see build/fetch-chat.sh.
         (Chat, ["AgoraChat", "aosl"], 4_000_000),
+        // Whiteboard is the odd one out: a static library this repository builds from netless's
+        // source rather than a dynamic framework Agora publishes, so it is embedded in the
+        // assembly rather than carried beside it — which is why ExtensionPackageTests' payload
+        // helpers do not apply to it and WhiteboardPackageTests checks it instead.
     ];
+
+    /// <summary>
+    /// Whiteboard's payload floor. Lower than the others' because what it carries is a static
+    /// library built from netless's source rather than a dynamic framework with both slices of a
+    /// full media SDK in it.
+    /// </summary>
+    public const long WhiteboardMinPayloadBytes = 500_000;
+
+    /// <summary>
+    /// Fastboard's payload floor. Higher than Whiteboard's because its static library contains the
+    /// whole whiteboard SDK as well as Fastboard and this repository's shim.
+    /// </summary>
+    public const long FastboardMinPayloadBytes = 1_000_000;
 
     public static string[] XcFrameworksOf(string packageId) =>
         All.Single(p => p.Id == packageId).XcFrameworks;

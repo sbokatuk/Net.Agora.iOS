@@ -1,0 +1,23 @@
+<Project>
+
+  <!--
+    Puts Fastboard's assets and the board's JavaScript into the consuming app's bundle.
+
+    Two bundles: Fastboard's own toolbar icons and localised strings, and the whiteboard SDK's
+    page. Each library finds its own through the module-bundle finder Swift Package Manager
+    generated when it was built, which looks it up in the main bundle by that exact name — so the
+    directory names here are not ours to tidy. Miss the first and the toolbar is blank buttons;
+    miss the second and the board itself is blank. Neither reports an error.
+
+    A binding project cannot ship these as its own @(BundleResource): that packs the assembly and
+    the native payload only. So they are packed as plain content and declared here instead, where
+    "here" is the app being built.
+  -->
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+    <BundleResource Include="$(MSBuildThisFileDirectory)../fastboard/Fastboard_Fastboard.bundle/**/*"
+                    LogicalName="Fastboard_Fastboard.bundle/%(RecursiveDir)%(Filename)%(Extension)" />
+    <BundleResource Include="$(MSBuildThisFileDirectory)../fastboard/Whiteboard_Whiteboard.bundle/**/*"
+                    LogicalName="Whiteboard_Whiteboard.bundle/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

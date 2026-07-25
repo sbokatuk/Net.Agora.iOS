@@ -1,0 +1,110 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AgoraPackageName>Fastboard</AgoraPackageName>
+    <!--
+      No NoBindingEmbedding here, unlike the other bindings, but the effect is the same: the .NET
+      iOS SDK has not embedded native payload in the assembly since .NET 6 regardless, so this
+      project's static library travels in <Assembly>.resources.zip like everyone else's dynamic
+      frameworks. The others set the property to say so explicitly because they *must* not embed;
+      this one simply has no reason to.
+    -->
+    <Nullable>enable</Nullable>
+    <!--
+      CS0114: WhiteMemberState redeclares four of WhiteReadonlyMemberState's read-only properties
+      as read-write, which is what the header does. The generated code hides rather than overrides
+      them, correctly — they differ by accessor, not by signature.
+    -->
+    <NoWarn>$(NoWarn);CS0114</NoWarn>
+    <VersionPrefix>$(AgoraFastboardIosVersion).$(AgoraFastboardBindingRevision)</VersionPrefix>
+  </PropertyGroup>
+
+  <Import Project="../Agora.Binding.props" />
+
+  <Target Name="ValidateAgoraXcframeworks" BeforeTargets="Build;Pack"
+          Condition="!Exists('$(MSBuildProjectDirectory)/lib/AgoraFastboardBridge.xcframework')">
+    <Error Text="lib/AgoraFastboardBridge.xcframework is missing. Run build/build-fastboard.sh first." />
+  </Target>
+
+  <!--
+    Two bundles, not one: Fastboard's own (toolbar icons and localised strings) and the whiteboard
+    SDK's (the board page itself). Missing the first gives a toolbar of blank buttons; missing the
+    second gives a blank board. Neither reports an error.
+  -->
+  <Target Name="ValidateAgoraFastboardBundles" BeforeTargets="Build;Pack"
+          Condition="!Exists('$(MSBuildProjectDirectory)/lib/Fastboard_Fastboard.bundle') Or !Exists('$(MSBuildProjectDirectory)/lib/Whiteboard_Whiteboard.bundle')">
+    <Error Text="lib/Fastboard_Fastboard.bundle or lib/Whiteboard_Whiteboard.bundle is missing — the toolbar or the board would come up blank. Run build/build-fastboard.sh first." />
+  </Target>
+
+  <ItemGroup>
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+    <ObjcBindingCoreSource Include="StructsAndEnums.cs" />
+  </ItemGroup>
+
+  <!--
+    ForceLoad, because the SDK's Objective-C categories would otherwise be dropped by the linker —
+    the classic static-library failure, and one that shows up as an unrecognised selector at
+    runtime rather than as a link error.
+
+    The frameworks list is what the source actually links against: WebKit for the board itself,
+    AVFoundation for the audio a converted document can carry, and the rest for the SDK's own
+    networking and rendering.
+  -->
+  <ItemGroup>
+    <!--
+      Kind=Static, not Framework, even though this is an .xcframework: what is inside it is a
+      static library, and Kind is about the payload rather than the container. With Framework the
+      linker takes the slice directory for a framework name and fails with
+      "ld: framework 'ios-arm64_x86_64-simulator' not found".
+    -->
+    <NativeReference Include="lib/AgoraFastboardBridge.xcframework">
+      <Kind>Static</Kind>
+      <ForceLoad>True</ForceLoad>
+      <SmartLink>False</SmartLink>
+      <Frameworks>WebKit AVFoundation CoreGraphics CoreText</Frameworks>
+    </NativeReference>
+  </ItemGroup>
+
+  <!--
+    The board is a web app, and this bundle is the page it loads. Without it the view comes up
+    blank with no error at all, which is the single most confusing way this package could fail —
+    so it ships inside the package rather than being left to the consumer to find.
+
+    It cannot travel as a @(BundleResource) of this project: a binding project packs its assembly
+    and its native payload and nothing else, so the bundle would build into this project's own
+    (never-shipped) output and vanish. Instead it is packed as plain content and re-declared as a
+    @(BundleResource) in the consuming app by the .targets file below, which NuGet imports
+    automatically.
+
+    The directory name is SwiftPM's, not ours: the library finds the bundle through SwiftPM's
+    generated module-bundle finder, which looks up "Fastboard_Fastboard.bundle" by that exact
+    string. See build/build-fastboard.sh.
+  -->
+  <ItemGroup>
+    <!--
+      _CodeSignature is excluded: it is the signature of the bundle as Xcode built it, which stops
+      being true the moment the consuming app re-signs its own bundle, and the duplicated
+      RecursiveDir in its paths makes it unpack wrong anyway.
+    -->
+    <None Include="lib/Fastboard_Fastboard.bundle/**/*"
+          Exclude="lib/Fastboard_Fastboard.bundle/_CodeSignature/**/*"
+          Pack="true"
+          PackagePath="fastboard/Fastboard_Fastboard.bundle/%(RecursiveDir)%(Filename)%(Extension)"
+          Visible="false" />
+    <None Include="lib/Whiteboard_Whiteboard.bundle/**/*"
+          Exclude="lib/Whiteboard_Whiteboard.bundle/_CodeSignature/**/*"
+          Pack="true"
+          PackagePath="fastboard/Whiteboard_Whiteboard.bundle/%(RecursiveDir)%(Filename)%(Extension)"
+          Visible="false" />
+    <None Include="build/Net.Agora.Fastboard.iOS.targets"
+          Pack="true"
+          PackagePath="buildTransitive/Net.Agora.Fastboard.iOS.targets"
+          Visible="false" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <Description>.NET for iOS / .NET MAUI bindings for Fastboard, netless's ready-made UI over the Agora Interactive Whiteboard (fastboard-iOS $(AgoraFastboardIosVersion)) — a board with a working toolbar rather than a bare canvas. What is bound is not Fastboard itself but an Objective-C shim over it, because Fastboard is Swift: see native/AgoraFastboardBridge and build/build-fastboard.sh.</Description>
+    <PackageTags>$(PackageTags);Fastboard;Whiteboard;drawing;collaboration</PackageTags>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,31 @@
+// swift-tools-version:5.9
+//
+// Generated at build time by build/build-fastboard.sh: @FASTBOARD_REVISION@ is replaced with the
+// commit pinned in build/checksums.txt.
+//
+// A wrapper package rather than a patch to netless's own Package.swift. Editing someone else's
+// manifest in a temp clone is the kind of thing that breaks silently on their next release; this
+// way the shim is an ordinary package with an ordinary dependency, and the only thing the build
+// script substitutes is the revision.
+
+import PackageDescription
+
+let package = Package(
+    name: "AgoraFastboardBridge",
+    defaultLocalization: "en",
+    platforms: [.iOS(.v12)],
+    products: [
+        .library(name: "AgoraFastboardBridge", targets: ["AgoraFastboardBridge"])
+    ],
+    dependencies: [
+        // By revision, not by version: a tag is a mutable pointer, and this is the same commit
+        // build/checksums.txt records.
+        .package(url: "https://github.com/netless-io/fastboard-iOS.git", revision: "@FASTBOARD_REVISION@")
+    ],
+    targets: [
+        .target(
+            name: "AgoraFastboardBridge",
+            dependencies: [.product(name: "Fastboard", package: "fastboard-iOS")],
+            path: "Sources")
+    ]
+)

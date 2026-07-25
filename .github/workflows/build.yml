@@ -15,6 +15,16 @@ on:
         required: false
         default: ''
         type: string
+      track:
+        description: >
+          Restrict the build to one release track — rtc, signaling, chat, whiteboard or fastboard
+          (see build/tracks.tsv). Packs only that track's packages and skips the CI-only jobs
+          (validate, sample, e2e), which the pull request that merged this commit already ran.
+          Empty, the default, builds and validates the whole repository — what push and
+          pull_request want. Releases set it, so a per-track tag publishes only its own track.
+        required: false
+        default: ''
+        type: string
       e2e-target-frameworks:
         description: >
           Which of the package's target frameworks the simulator smoke tests run against, as a JSON
@@ -73,7 +83,7 @@ jobs:
           path: src/*/lib
           key: agora-ios-xcframeworks-${{ hashFiles('Directory.Build.props', 'build/checksums.txt') }}
 
-      - name: Fetch the Agora iOS SDKs
+      - name: Fetch and build the Agora iOS SDKs
         if: steps.xcframeworks.outputs.cache-hit != 'true'
         run: |
           ./build/fetch-video.sh
@@ -81,14 +91,20 @@ jobs:
           ./build/fetch-signaling.sh
           ./build/fetch-chat.sh
           ./build/fetch-extensions.sh
+          # Whiteboard and Fastboard have no prebuilt binary to fetch — netless ships CocoaPods
+          # source pods — so these clone a pinned commit and xcodebuild an xcframework from it.
+          # They are slow (an archive per platform, then -create-xcframework), which is what the
+          # cache above exists for: on a hit this whole step is skipped, and the cache key covers
+          # their pins (Directory.Build.props + the git: commit lines in build/checksums.txt).
+          ./build/build-whiteboard.sh
+          ./build/build-fastboard.sh
 
       - name: Pack
         run: |
-          if [ -n "${{ inputs.suffix }}" ]; then
-            ./build/BuildNugets.sh --suffix "${{ inputs.suffix }}"
-          else
-            ./build/BuildNugets.sh
-          fi
+          args=""
+          [ -n "${{ inputs.track }}" ] && args="$args --track ${{ inputs.track }}"
+          [ -n "${{ inputs.suffix }}" ] && args="$args --suffix ${{ inputs.suffix }}"
+          ./build/BuildNugets.sh $args
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
@@ -103,6 +119,9 @@ jobs:
   validate:
     name: validate packages
     needs: pack
+    # Skipped on a scoped track release: the package tests assert the whole package set, which a
+    # single-track pack does not produce — and the merged commit already ran them on its PR.
+    if: ${{ inputs.track == '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -134,6 +153,8 @@ jobs:
     name: build sample app
     timeout-minutes: 30
     needs: pack
+    # Off on a scoped track release — the tagged commit was validated on its PR. See validate.
+    if: ${{ inputs.track == '' }}
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -188,6 +209,8 @@ jobs:
     name: simulator smoke test (${{ matrix.package }}, ${{ matrix.target-framework }})
     timeout-minutes: 45
     needs: pack
+    # Off on a scoped track release — the tagged commit was device-tested on its PR. See validate.
+    if: ${{ inputs.track == '' }}
     runs-on: macos-15
     strategy:
       # fail-fast off: when one leg breaks it is worth knowing whether the others did too, since

@@ -1,0 +1,25 @@
+# Release tracks: which packages version and publish together, and the git-tag prefix that
+# releases each. Source of truth read by build/resolve-track.sh (tag -> track), BuildNugets.sh
+# --track (pack only a track), and .github/workflows/release.yml.
+#
+# Why tracks exist: the packages sit on unrelated native version lines (RTC 4.6.x, RTM 2.2.x,
+# Chat 1.4.x, Whiteboard 2.16.x, Fastboard 1.4.x), so one tag publishing all of them stamps a
+# release note that makes sense for none. A tag names one track; the release builds and publishes
+# only that track, at its own pins.
+#
+# Tag scheme: the main RTC track uses a bare "v" (v4.6.2.4); every other track prefixes its
+# product name (chat-v1.4.0.1). resolve-track.sh matches the longest prefix, so "v" never
+# swallows "chat-v".
+#
+# There is no IoT track: Agora ships no iOS IoT SDK, so that product exists only in the Android
+# repository.
+#
+# Columns are single-tab-separated. The third is space-separated package ids from
+# build/packages.tsv; a trailing "*" is a prefix match (Extensions.* is the twelve extensions).
+#
+# track	tag-prefix	package-ids
+rtc	v	Video Voice Extensions.*
+signaling	signaling-v	Signaling
+chat	chat-v	Chat
+whiteboard	whiteboard-v	Whiteboard
+fastboard	fastboard-v	Fastboard
