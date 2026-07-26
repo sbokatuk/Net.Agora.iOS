@@ -90,8 +90,14 @@ done
 # iOS device + simulator slices. The xcframework's Info.plist has to agree with what is on disk
 # (the iOS SDK rejects a manifest that advertises a missing slice), so the matching
 # AvailableLibraries entries are pruned too.
+#
+# The device slice is also thinned: Agora still builds it as ios-arm64_armv7, and .NET for iOS
+# has not supported 32-bit armv7 since .NET 6 — the architecture is unreachable dead weight
+# repeated once per packed target framework. lipo removes it from every Mach-O in the slice, the
+# slice directory is renamed to plain ios-arm64, and the manifest entry is rewritten to match
+# (identifier and SupportedArchitectures both — the SDK cross-checks them against the binary).
 python3 - "$DEST" <<'PYEOF'
-import plistlib, shutil, sys
+import plistlib, shutil, subprocess, sys
 from pathlib import Path
 
 dest = Path(sys.argv[1])
@@ -105,8 +111,22 @@ for manifest in dest.glob("*.xcframework/Info.plist"):
         identifier = library["LibraryIdentifier"]
         if identifier.startswith("xros"):
             shutil.rmtree(bundle / identifier, ignore_errors=True)
-        else:
-            kept.append(library)
+            continue
+
+        architectures = library.get("SupportedArchitectures", [])
+        if "armv7" in architectures:
+            slice_dir = bundle / identifier
+            framework = slice_dir / library["LibraryPath"]
+            binary = framework / framework.stem
+            subprocess.run(
+                ["lipo", binary, "-remove", "armv7", "-output", binary], check=True)
+
+            new_identifier = identifier.replace("_armv7", "").replace("armv7_", "")
+            (bundle / identifier).rename(bundle / new_identifier)
+            library["LibraryIdentifier"] = new_identifier
+            library["SupportedArchitectures"] = [a for a in architectures if a != "armv7"]
+
+        kept.append(library)
     plist["AvailableLibraries"] = kept
 
     with open(manifest, "wb") as f:
