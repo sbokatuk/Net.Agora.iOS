@@ -114,31 +114,41 @@ dotnet test tests/Net.Agora.iOS.PackageTests
 
 **Simulator smoke tests** (`tests/Net.Agora.iOS.DeviceTests`) build an app against the packed
 package and drive the raw binding on a booted simulator, which is the only way to prove the
-native frameworks actually link and load — the historical example being `video_dec`, which
+native payload actually links and loads — the historical example being `video_dec`, which
 AgoraRtcKit's binary loads at launch and whose absence nothing at compile or link time can see.
-The checks assert every framework is loaded into the process, read the native SDK version, and
-round-trip the engine create → drive → destroy with an unregistered App ID; nothing touches the
-network and no credentials are involved (the [façade repo][facade]'s own device tests cover the
-join path):
+Nothing touches the network and no credentials are involved; no channel is joined, no login
+attempted and no whiteboard room entered (the [façade repo][facade]'s own device tests cover those
+paths with bounded timeouts):
 
 ```sh
 ./.github/scripts/run-simulator-tests.sh 4.6.2.1 net10.0-ios26.0
 ./.github/scripts/run-simulator-tests.sh 4.6.2.1 net10.0-ios26.0 Voice
+./.github/scripts/run-simulator-tests.sh 2.16.137.2 net9.0-ios18.0 Whiteboard
 ```
 
-One package per run — both ship a framework named `AgoraRtcKit`, so a single app holds one of
-them. The Voice flavour swaps the video checks for the audio-route/volume-indication surface that
-binding adds.
+One product per run, and not by preference: the RTC pair both ship a framework named
+`AgoraRtcKit`, and Whiteboard and Fastboard both carry netless's static library (Fastboard's
+contains Whiteboard's objects) and both declare `Whiteboard_Whiteboard.bundle`. There is a flavour
+per package, and what each asserts differs with how the package is built:
+
+| Flavour | What it proves |
+| --- | --- |
+| `Video`, `Voice` | Every framework loaded into the process, the native SDK version, and the engine round-tripping create → drive → destroy with an unregistered App ID. Voice swaps the video checks for the audio-route/volume-indication surface that binding adds, and asserts one framework fewer — its build of AgoraRtcKit links no video codec, which is the point. |
+| `Signaling`, `Chat` | The same framework and version checks, client construction with an unregistered identifier, and — the part only a real SDK can answer — that an `[Async]` overload *completes* rather than faults, carrying the error as data. |
+| `Whiteboard`, `Fastboard` | No dyld check: netless ships a **static** library, so the classes are linked into the app's own binary and the equivalent proof is that the Objective-C runtime knows them by name. Then the check neither the compiler nor the package tests can make — that `Whiteboard_Whiteboard.bundle` (and, for Fastboard, `Fastboard_Fastboard.bundle`) reached the app bundle under the exact name the SDK's own SwiftPM bundle finder looks up, and opens with its payload intact. A missing bundle renders a **blank board with no error at all**, which is the single most confusing way either package can fail. |
 
 ## CI
 
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
-| [`pr.yml`](.github/workflows/pr.yml) | pull request | Packs every package in `build/packages.tsv` as `<version>-beta.<pr>.<run>`, runs the package tests, builds the MAUI sample against the packed package, runs the simulator smoke tests (per package, net8 and net10 legs in parallel), then publishes the betas to nuget.org. Forked PRs build and test but skip publishing, since they cannot read secrets. |
+| [`pr.yml`](.github/workflows/pr.yml) | pull request | Packs every package in `build/packages.tsv` as `<version>-beta.<pr>.<run>`, runs the package tests, builds the MAUI samples against the packed packages **in Release** (so the managed linker runs) and links two of them for a real device runtime identifier, runs the simulator smoke tests (per package, net8 and net10 legs in parallel), then publishes the betas to nuget.org. Forked PRs build and test but skip publishing, since they cannot read secrets. |
 | [`release.yml`](.github/workflows/release.yml) | tag `v*` | Same build and tests at the tag's version, publishes to nuget.org, then creates a GitHub release — from `docs/release-notes/<version>.md` when a curated file exists, otherwise from the commit log since the previous tag. |
 
-Both call the reusable [`build.yml`](.github/workflows/build.yml), whose pack, sample and e2e jobs
-run on macOS — iOS builds have no cross-platform path, unlike the Android bindings.
+Both call the reusable [`build.yml`](.github/workflows/build.yml), whose pack, sample, device-link
+and e2e jobs run on macOS — iOS builds have no cross-platform path, unlike the Android bindings.
+The `device-link` job is the only one that links the packages' **device** slices: everything else
+here builds for a simulator, and a device slice that was empty or mis-stripped would sail through
+all of it.
 
 ## Sample
 

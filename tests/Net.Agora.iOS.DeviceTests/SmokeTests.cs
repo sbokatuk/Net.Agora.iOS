@@ -1,5 +1,11 @@
 using System.Runtime.InteropServices;
-#if AGORA_SIGNALING
+#if AGORA_FASTBOARD
+using Net.Agora.Fastboard.iOS;
+#elif AGORA_WHITEBOARD
+using Net.Agora.Whiteboard.iOS;
+#elif AGORA_CHAT
+using Net.Agora.Chat.iOS;
+#elif AGORA_SIGNALING
 using Net.Agora.Signaling.iOS;
 #elif AGORA_VOICE
 using Net.Agora.Voice.iOS;
@@ -18,19 +24,26 @@ public sealed record SmokeTest(string Name, Action Execute);
 
 /// <summary>
 /// End-to-end checks that only mean anything on a real device or simulator: they load the native
-/// Agora frameworks out of the packaged xcframeworks and drive the raw binding — the RTC
-/// flavours' <c>AgoraRtcEngineKit</c> or the Signaling flavour's <c>AgoraRtmClientKit</c>, with
-/// no cross-platform façade in between. The façade's own on-device suite is
-/// Net.Agora/tests/Net.Agora.DeviceTests; this one exists so a packaging regression is caught in
-/// the repository that packs, not two releases later in the one that consumes.
+/// Agora payload out of the packaged xcframeworks and drive the raw binding — the RTC flavours'
+/// <c>AgoraRtcEngineKit</c>, the Signaling flavour's <c>AgoraRtmClientKit</c>, Chat's
+/// <c>AgoraChatClient</c> or the two board flavours' netless classes — with no cross-platform
+/// façade in between. The façade's own on-device suite is Net.Agora/tests/Net.Agora.DeviceTests;
+/// this one exists so a packaging regression is caught in the repository that packs, not two
+/// releases later in the one that consumes.
 /// </summary>
 /// <remarks>
 /// Nothing here touches the network. The App ID is syntactically valid but unregistered — the
 /// shape of a real one, so the SDK's own client-side format validation does not short-circuit the
-/// checks — and no channel is ever joined nor login attempted: those are live signalling calls to
-/// Agora's servers, and the façade repository already covers that path with its bounded-timeout
-/// join checks. What only this suite proves is that the packed package's native payload loads,
-/// its selectors resolve, and the kit round-trips create → drive → destroy.
+/// checks — and no channel is ever joined, no login attempted and no whiteboard room entered:
+/// those are live signalling calls to Agora's and netless's servers, and the façade repository
+/// already covers that path with its bounded-timeout join checks. What only this suite proves is
+/// that the packed package's native payload loads, its selectors resolve, and the kit round-trips
+/// create → drive → destroy.
+/// <para>
+/// One product per app. The RTC pair collide on a framework name; Whiteboard and Fastboard collide
+/// on netless's static library and on Whiteboard_Whiteboard.bundle, which they both declare. See
+/// the .csproj.
+/// </para>
 /// <para>
 /// The checks are ordered: the engine has to exist before it can be driven, and a failure early
 /// on cascades — which is the intent, since the first failure is the informative one.
@@ -46,7 +59,52 @@ public static class SmokeTests
     /// <summary>Writes a line to stdout under the current check. Set by the app delegate.</summary>
     public static Action<string> Reporter { get; set; } = _ => { };
 
-#if AGORA_SIGNALING
+#if AGORA_FASTBOARD
+    /// <summary>Kept for the app's lifetime so the construction check's object is not collected mid-suite.</summary>
+    private static AgoraFastboardConfiguration? _configuration;
+
+    /// <summary>Every check, in the order they must run. Per flavour — see the csproj.</summary>
+    public static SmokeTest[] All =>
+    [
+        new("every class of the static library is registered", EveryClassIsRegistered),
+        new("reports the embedded whiteboard SDK version", ReportsTheSdkVersion),
+        new("both resource bundles reached the app bundle and load", ResourceBundlesAreLoadable),
+        new("constructs the configuration", ConstructsTheClient),
+    ];
+#elif AGORA_WHITEBOARD
+    /// <summary>Kept for the app's lifetime so the construction check's objects are not collected mid-suite.</summary>
+    private static WhiteSdkConfiguration? _configuration;
+
+    /// <summary>The board view the construction check creates. Held for the same reason.</summary>
+    private static WhiteBoardView? _boardView;
+
+    /// <summary>Every check, in the order they must run. Per flavour — see the csproj.</summary>
+    public static SmokeTest[] All =>
+    [
+        new("every class of the static library is registered", EveryClassIsRegistered),
+        new("reports the native SDK version", ReportsTheSdkVersion),
+        new("the board's resource bundle reached the app bundle and loads", ResourceBundlesAreLoadable),
+        new("constructs the SDK configuration and a board view", ConstructsTheClient),
+    ];
+#elif AGORA_CHAT
+    /// <summary>The client every check after construction shares. Set by <see cref="ConstructsTheClient"/>.</summary>
+    private static AgoraChatClient? _client;
+
+    /// <summary>
+    /// Held for the client's lifetime: -addDelegate:delegateQueue: keeps its delegates weakly, as
+    /// every Agora kit here does, so a collected one would silently stop the callbacks.
+    /// </summary>
+    private static ClientDelegate? _delegate;
+
+    /// <summary>Every check, in the order they must run. Per flavour — see the csproj.</summary>
+    public static SmokeTest[] All =>
+    [
+        new("every native framework is linked and loadable", EveryFrameworkIsLinked),
+        new("reports the native SDK version", ReportsTheSdkVersion),
+        new("constructs the client with an unregistered app key", ConstructsTheClient),
+        new("an [Async] operation completes end-to-end", AwaitableOperationCompletes),
+    ];
+#elif AGORA_SIGNALING
     /// <summary>The client every check after construction shares. Set by <see cref="ConstructsTheClient"/>.</summary>
     private static AgoraRtmClientKit? _client;
 
@@ -101,6 +159,146 @@ public static class SmokeTests
 
     private static void Report(string message) => Reporter(message);
 
+#if AGORA_WHITEBOARD || AGORA_FASTBOARD
+    /// <summary>Classes the static library must have contributed to the app's own binary.</summary>
+    /// <remarks>
+    /// The board flavours get this where every other flavour gets the dyld image list, and the
+    /// difference is not cosmetic: netless ships a <em>static</em> library, so there is no
+    /// <c>X.framework/X</c> image for dyld to report — the code is linked into the app's own
+    /// executable, which dyld names once, as the app. The regression to catch is the same shape
+    /// though, and if anything likelier here: a static library only contributes the translation
+    /// units the linker decides it needs, which is why the binding passes <c>ForceLoad</c> (see
+    /// the NativeReference block in the binding .csproj), and a unit dropped anyway surfaces as a
+    /// nil class or an unrecognised selector the first time a type is touched — never as a link
+    /// error. So the equivalent proof is that the Objective-C runtime knows the classes by name.
+    /// <para>
+    /// The SwiftPM module-bundle finder is on the list deliberately: it is the class that performs
+    /// the lookup <see cref="ResourceBundlesAreLoadable"/> asserts, so the two checks together say
+    /// the finder is present *and* has something to find.
+    /// </para>
+    /// </remarks>
+    private static readonly string[] Classes =
+    [
+#if AGORA_FASTBOARD
+        // The shim's own types — see native/AgoraFastboardBridge, whose @objc(...) names these
+        // are. The White* pair below come from netless's whiteboard library, which Fastboard's
+        // static library contains outright: that is why Fastboard and Whiteboard cannot be
+        // referenced by one app, and asserting them here is what keeps that claim honest.
+        "AgoraFastboard", "AgoraFastboardConfiguration",
+        "WhiteSDK", "WhiteSdkConfiguration",
+        "Fastboard_FastboardDynamic_SWIFTPM_MODULE_BUNDLER_FINDER",
+        "Whiteboard_Whiteboard_SWIFTPM_MODULE_BUNDLER_FINDER",
+#else
+        "WhiteSDK", "WhiteSdkConfiguration", "WhiteBoardView",
+        "WhiteRoom", "WhiteRoomConfig", "WhiteDisplayer", "WhiteMemberState",
+        "Whiteboard_Whiteboard_SWIFTPM_MODULE_BUNDLER_FINDER",
+#endif
+    ];
+
+    private static void EveryClassIsRegistered()
+    {
+        var missing = Classes.Where(name => Class.GetHandle(name) == IntPtr.Zero).ToList();
+
+        Assert(
+            missing.Count == 0,
+            $"these classes are not registered in the process: {string.Join(", ", missing)}");
+
+        // The same question asked through a bound type rather than a literal string, which is what
+        // a consuming app actually depends on: this overload resolves the [Register] name the
+        // generator gave the binding, so it fails if the binding and the library ever disagree
+        // about what a class is called — something a list of literals here could not notice.
+#if AGORA_FASTBOARD
+        Assert(
+            Class.GetHandle(typeof(AgoraFastboard)) != IntPtr.Zero,
+            "the AgoraFastboard binding's registered class name does not resolve.");
+#else
+        Assert(
+            Class.GetHandle(typeof(WhiteSDK)) != IntPtr.Zero,
+            "the WhiteSDK binding's registered class name does not resolve.");
+#endif
+
+        Report($"all {Classes.Length} classes registered");
+    }
+
+    /// <summary>
+    /// Every resource bundle the package must have staged into the app bundle, and one file that
+    /// has to be inside each — an empty directory with an Info.plist would otherwise pass.
+    /// </summary>
+    private static readonly (string Name, string Witness, string WitnessType)[] ResourceBundles =
+    [
+#if AGORA_FASTBOARD
+        // Fastboard's own: the toolbar's icons, as a compiled asset catalogue, plus its localised
+        // strings. Missing, the toolbar comes up as a row of blank buttons.
+        ("Fastboard_Fastboard", "Assets", "car"),
+#endif
+        // The whiteboard SDK's: the web page the board actually is. Fastboard ships this one too,
+        // since it is a UI layer over the same SDK.
+        ("Whiteboard_Whiteboard", "index", "html"),
+    ];
+
+    /// <summary>
+    /// Proves the resource bundles reached the app bundle under the exact names the libraries look
+    /// them up by, and that each opens as a bundle with its payload intact.
+    /// </summary>
+    /// <remarks>
+    /// The highest-value check in the board flavours, because it is the only one that can catch
+    /// this failure at all. The board is a web app: without Whiteboard_Whiteboard.bundle the view
+    /// comes up blank and *nothing is reported* — no exception, no error callback, no log line —
+    /// which is the single most confusing way either package can fail. Fastboard's own bundle
+    /// fails just as quietly, as a toolbar of blank buttons.
+    /// <para>
+    /// The name is not ours and cannot be tidied. Each library finds its bundle through the
+    /// module-bundle finder Swift Package Manager generated when it was built, which composes
+    /// "&lt;module&gt;.bundle" from a "%@.bundle" format string — both are visible with
+    /// <c>strings</c> on the shipped .a — and asks the main bundle for it. So this check asks the
+    /// same question the same way: by that literal name, of NSBundle.MainBundle.
+    /// </para>
+    /// <para>
+    /// It is also the only check in either repository that exercises the delivery mechanism end to
+    /// end. A binding project cannot ship a @(BundleResource) of its own, so the bundle is packed
+    /// as plain content and re-declared in the consuming app by the .targets file NuGet imports
+    /// from buildTransitive/ — and this app is a consuming app. The package tests assert the
+    /// bundle and the .targets are *in the .nupkg*; only running it can show the .targets actually
+    /// fired and put the files somewhere NSBundle will find them.
+    /// </para>
+    /// <para>
+    /// Confirmed to have teeth rather than assumed: deleting the bundle from a built .app and
+    /// re-running turns this check red with the message below, and takes the construction check
+    /// after it down too.
+    /// </para>
+    /// </remarks>
+    private static void ResourceBundlesAreLoadable()
+    {
+        foreach (var (name, witness, witnessType) in ResourceBundles)
+        {
+            var path = Foundation.NSBundle.MainBundle.PathForResource(name, "bundle");
+
+            Assert(
+                !string.IsNullOrEmpty(path),
+                $"{name}.bundle is not in the app bundle. The .targets file shipped in "
+                    + "buildTransitive/ is what declares it as a BundleResource of the consuming "
+                    + "app — see the binding .csproj.");
+
+            var bundle = Foundation.NSBundle.FromPath(path);
+
+            Assert(bundle is not null, $"{name}.bundle did not open as a bundle.");
+
+            // Its own Info.plist, parsed by CoreFoundation rather than read as a file: a directory
+            // that merely exists is not a loadable bundle.
+            Assert(
+                !string.IsNullOrEmpty(bundle.BundleIdentifier),
+                $"{name}.bundle opened but has no bundle identifier — its Info.plist did not survive packing.");
+
+            var resource = bundle.PathForResource(witness, witnessType);
+
+            Assert(
+                !string.IsNullOrEmpty(resource),
+                $"{name}.bundle is present but {witness}.{witnessType} is not in it.");
+
+            Report($"{name}.bundle loaded ({bundle.BundleIdentifier}), {witness}.{witnessType} present");
+        }
+    }
+#else
     /// <summary>Every framework the package ships. All dynamic — see the csproj.</summary>
     /// <remarks>
     /// For Video, video_dec earns its place on this list twice over: AgoraRtcKit's binary links
@@ -110,11 +308,15 @@ public static class SmokeTests
     /// regression this check exists for. The voice build of AgoraRtcKit links no video codec —
     /// the check that it still loads with one fewer framework is the point of the Voice flavour.
     /// Signaling is the two-framework product; the fetch script's slice-stripping makes the same
-    /// check worth having.
+    /// check worth having. Chat is the other two-framework product, and the only one whose aosl
+    /// comes from a second archive — AgoraInfra_iOS, which its pod merely declares a dependency on
+    /// — so a fetch script that downloaded one and not the other fails exactly here.
     /// </remarks>
     private static readonly string[] Frameworks =
     [
-#if AGORA_SIGNALING
+#if AGORA_CHAT
+        "AgoraChat", "aosl",
+#elif AGORA_SIGNALING
         "AgoraRtmKit", "aosl",
 #elif AGORA_VOICE
         "AgoraRtcKit", "aosl", "Agorafdkaac", "Agoraffmpeg", "AgoraSoundTouch",
@@ -164,8 +366,258 @@ public static class SmokeTests
 
         Report($"all {Frameworks.Length} frameworks loaded");
     }
+#endif
 
-#if AGORA_SIGNALING
+    // Raw Objective-C messaging, for the flavours that have to send a selector their binding
+    // deliberately does not export: the RTC pair's +getSdkVersion, and Fastboard's
+    // +[WhiteSDK version], which belongs to the whiteboard library Fastboard embeds rather than to
+    // the shim this package binds. Declared once, here, rather than per flavour.
+#if !AGORA_SIGNALING && !AGORA_CHAT && !AGORA_WHITEBOARD
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr object_getClass(IntPtr obj);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [return: MarshalAs(UnmanagedType.I1)]
+    private static extern bool class_respondsToSelector(IntPtr cls, IntPtr sel);
+
+    [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
+    private static extern IntPtr IntPtr_objc_msgSend(IntPtr receiver, IntPtr selector);
+
+    /// <summary>Sends a zero-argument class selector returning an NSString, or fails the check.</summary>
+    private static string? ClassStringSelector(string className, string selectorName)
+    {
+        var cls = Class.GetHandle(className);
+        Assert(cls != IntPtr.Zero, $"{className} did not resolve to a native class.");
+
+        var selector = Selector.GetHandle(selectorName);
+
+        // A class method lives on the metaclass, which is what object_getClass returns for a
+        // class object. Checked before sending, so a renamed selector fails this assertion
+        // rather than raising an unrecognized-selector NSException mid-send.
+        Assert(
+            class_respondsToSelector(object_getClass(cls), selector),
+            $"{className} does not respond to +{selectorName}.");
+
+        return Runtime.GetNSObject<Foundation.NSString>(IntPtr_objc_msgSend(cls, selector))?.ToString();
+    }
+#endif
+
+    /// <summary>Checks a version string's shape, not its value.</summary>
+    /// <remarks>
+    /// The shape, never a pinned value: the pod version lives in Directory.Build.props and
+    /// asserting it here would mean two places to edit on every bump, for a check whose point is
+    /// only that a real version string came back across the bridge.
+    /// </remarks>
+    private static void AssertLooksLikeAVersion(string? version)
+    {
+        Assert(!string.IsNullOrWhiteSpace(version), "the version getter returned nothing.");
+        Assert(
+            version.Any(char.IsAsciiDigit) && version.Contains('.', StringComparison.Ordinal),
+            $"'{version}' does not look like a dotted version number.");
+    }
+
+#if AGORA_FASTBOARD
+    // Placeholders of the right shape, registered nowhere. The configuration validates none of
+    // them and nothing here joins a room, so they never leave the process.
+    private const string RoomUuid = "0123456789abcdef0123456789abcdef";
+    private const string RoomToken = "NETLESSROOM_0123456789abcdef";
+
+    /// <summary>Reads <c>+[WhiteSDK version]</c> through the Objective-C runtime.</summary>
+    /// <remarks>
+    /// Through the runtime rather than the binding, and deliberately of a class this package does
+    /// not bind at all. WhiteSDK belongs to netless's whiteboard library, which Fastboard's static
+    /// library contains but Net.Agora.Fastboard.iOS does not expose — what it exposes is the shim
+    /// (see native/AgoraFastboardBridge) — and widening a shipping package's API surface so a test
+    /// can call into it would be backwards. Sending the selector by hand proves the thing this
+    /// flavour needs proved and the class list above cannot: the embedded whiteboard code is live
+    /// in the process, not merely present as symbols in the binary.
+    /// </remarks>
+    private static void ReportsTheSdkVersion()
+    {
+        var version = ClassStringSelector("WhiteSDK", "version");
+
+        Report($"embedded whiteboard SDK version {version ?? "(null)"}");
+
+        AssertLooksLikeAVersion(version);
+    }
+
+    private static void ConstructsTheClient()
+    {
+        // The configuration, not AgoraFastboard itself. The shim's -initWithConfiguration: calls
+        // Fastboard.createFastRoom, which stands up the FastRoom and its whole view hierarchy —
+        // toolbar, panels and a board view — before anything has been joined; that is a lot of UI
+        // to bring up on a headless run for a check whose subject is the package's payload, and
+        // its assets are the very bundle the previous check has just proved is there. So this
+        // flavour stops at the configuration: a flat property bag that crosses the same bridge and
+        // answers offline. What it does not cover, then, is -initWithConfiguration: and everything
+        // past it — the façade repository's suite drives that path, including the join, with a
+        // bounded timeout against a real endpoint.
+        _configuration = new AgoraFastboardConfiguration(AppId, RoomUuid, RoomToken, "net-agora-device-tests")
+        {
+            Region = "us-sv",
+        };
+
+        Assert(
+            _configuration.Handle != NativeHandle.Zero,
+            "initWithAppIdentifier:roomUUID:roomToken:userUID: returned no native handle.");
+
+        // Read back, not just written: these are the shim's own @objc properties, and a round trip
+        // is what shows the four arguments arrived in the order the binding declares them.
+        Assert(_configuration.AppIdentifier == AppId, "the app identifier did not round-trip.");
+        Assert(_configuration.RoomUuid == RoomUuid, "the room UUID did not round-trip.");
+        Assert(_configuration.RoomToken == RoomToken, "the room token did not round-trip.");
+        Assert(_configuration.Region == "us-sv", "the region did not round-trip.");
+
+        Report("configuration constructed");
+    }
+#elif AGORA_WHITEBOARD
+    /// <summary>Reads <c>+[WhiteSDK version]</c> through the binding's static property.</summary>
+    /// <remarks>
+    /// Through the binding rather than a raw selector send, unlike the RTC and Fastboard flavours:
+    /// netless's version getter is part of the bound surface here, so the binding call is itself
+    /// the thing to prove. It is also the first call in this flavour that reaches into the
+    /// force-loaded static library, which is a step the class lookups above cannot take on their
+    /// own — a registered class is not yet a class whose methods survived the link.
+    /// </remarks>
+    private static void ReportsTheSdkVersion()
+    {
+        var version = WhiteSDK.Version;
+
+        Report($"native SDK version {version ?? "(null)"}");
+
+        AssertLooksLikeAVersion(version);
+    }
+
+    private static void ConstructsTheClient()
+    {
+        _configuration = new WhiteSdkConfiguration(AppId)
+        {
+            // One of netless's data-centre keys. Nothing resolves it without a join.
+            Region = "us-sv",
+            Log = false,
+            UseMultiViews = false,
+        };
+
+        Assert(_configuration.Handle != NativeHandle.Zero, "initWithApp: returned no native handle.");
+        Assert(_configuration.AppIdentifier == AppId, "the app identifier did not round-trip.");
+        Assert(_configuration.Region == "us-sv", "the region did not round-trip.");
+
+        // The board view too, but no WhiteSDK over it and no room ever joined. -init is already
+        // where netless's view loads its initial resource, and that resource is the local bundle:
+        // -loadInitialResource -> -resourceURL -> +[NSURL fileURLWithPath:], file:// throughout.
+        // Nothing reaches netless until a room is joined, which is the step this suite stops
+        // short of.
+        //
+        // So this doubles as a second, independent reading of the bundle check above. Delete
+        // Whiteboard_Whiteboard.bundle from a built .app and this line throws
+        // NSInvalidArgumentException out of +[NSURL fileURLWithPath:] on a nil path — verified,
+        // by doing exactly that. Which is why the explicit NSBundle lookup runs first: the same
+        // defect, named, rather than an Objective-C exception three frames inside the SDK.
+        _boardView = new WhiteBoardView();
+
+        Assert(_boardView.Handle != NativeHandle.Zero, "WhiteBoardView's -init returned no native handle.");
+
+        Report("configuration and board view constructed");
+    }
+#elif AGORA_CHAT
+    // The app key's shape is {org}#{app} — Easemob's scheme, which Agora kept when it took the
+    // product over. Unregistered, like the App ID above and for the same reasons.
+    private const string AppKey = "netagora#devicetests";
+
+    /// <summary>Reads <c>-[AgoraChatClient version]</c> off the singleton.</summary>
+    /// <remarks>
+    /// Through the binding rather than a raw selector send, like Signaling's and unlike the RTC
+    /// flavours': Chat's version getter is part of the bound surface. It runs before the SDK is
+    /// initialised on purpose — +sharedClient has to hand back a usable object first, and this is
+    /// the cheapest call that proves it did.
+    /// </remarks>
+    private static void ReportsTheSdkVersion()
+    {
+        var version = AgoraChatClient.SharedClient.Version;
+
+        Report($"native SDK version {version ?? "(null)"}");
+
+        AssertLooksLikeAVersion(version);
+    }
+
+    private static void ConstructsTheClient()
+    {
+        var options = AgoraChatOptions.FromAppKey(AppKey);
+
+        Assert(options is not null, "optionsWithAppkey: returned null.");
+        Assert(options.AppKey == AppKey, "the app key did not round-trip.");
+
+        // Auto-login off, explicitly. It is the one switch in this class that would send the SDK
+        // to the network unprompted, and there is no credential in this process for it to use.
+        options.IsAutoLogin = false;
+        options.EnableConsoleLog = false;
+        options.LogLevel = AgoraChatLogLevel.Error;
+
+        _client = AgoraChatClient.SharedClient;
+
+        // Synchronous, and nil on success — the SDK's convention for its non-block calls, see the
+        // binding. It sets up local storage; it does not connect.
+        var error = _client.InitializeSdk(options);
+
+        Assert(
+            error is null,
+            $"initializeSDKWithOptions: failed with {error?.Code}: {error?.ErrorDescription}");
+
+        // The delegate goes in after initialisation: passing a subclass of the [Model] type is
+        // what proves the protocol's exported selectors registered, even though no callback fires
+        // in this suite — nothing here ever connects. A null queue means the main one.
+        _delegate = new ClientDelegate();
+        _client.AddDelegate(_delegate, null);
+
+        Assert(!_client.IsLoggedIn, "a freshly initialised client reports itself logged in.");
+
+        Report($"client constructed and SDK initialised for app key {_client.Options.AppKey}");
+    }
+
+    private static AgoraChatClient Client =>
+        _client ?? throw new InvalidOperationException("the client has not been constructed yet.");
+
+    /// <summary>
+    /// Awaits <c>LogoutAsync</c> — without a login, so the SDK answers through the completion
+    /// block with no network round trip — and asserts the [Async] contract: the Task completes
+    /// (never faults) and carries the error as data. This is the one place Chat's generated
+    /// awaitable surface is exercised against the real SDK rather than asserted from metadata,
+    /// which is what the package tests do.
+    /// </summary>
+    /// <remarks>
+    /// Chat's completion-not-fault contract is stronger than Signaling's, and holds for a
+    /// different reason: AgoraChatError is not an NSError, so the generator has no error type to
+    /// fault with and hands the whole callback value back as the result. A null result is success
+    /// everywhere in this SDK. See the ApiDefinition's comment on these three overloads.
+    /// </remarks>
+    private static void AwaitableOperationCompletes()
+    {
+        // unbindDeviceToken: false. True is the branch that would need the server, to tell it to
+        // stop pushing to a device token nothing here ever registered.
+        var task = Client.LogoutAsync(false);
+
+        // The completion arrives through the main queue and this suite runs on the main thread
+        // (see Program.cs), so a blocking Wait would deadlock — pumping the run loop is what
+        // lets the completion in while the check stays synchronous.
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        while (!task.IsCompleted && DateTime.UtcNow < deadline)
+        {
+            Foundation.NSRunLoop.Current.RunUntil(Foundation.NSDate.FromTimeIntervalSinceNow(0.05));
+        }
+
+        Assert(task.IsCompleted, "LogoutAsync's Task did not complete within 10 seconds.");
+        Assert(
+            task.IsCompletedSuccessfully,
+            $"LogoutAsync's Task is {task.Status} — the binding promises completion, not faulting.");
+
+        // Whether a login-less logout answers an error or a bare success is the SDK's business,
+        // not this suite's to pin; that it answers at all, as data on a completed Task, is the
+        // binding's contract.
+        Report(task.Result is { } error
+            ? $"logout answered code {error.Code}: {error.ErrorDescription}"
+            : "logout answered success (null error)");
+    }
+#elif AGORA_SIGNALING
     /// <summary>Reads <c>+[AgoraRtmClientKit getVersion]</c> and checks its shape.</summary>
     /// <remarks>
     /// Through the binding rather than a raw selector send, unlike the RTC flavours' version
@@ -179,11 +631,7 @@ public static class SmokeTests
 
         Report($"native SDK version {version ?? "(null)"}");
 
-        // The shape, not a pinned value — same reasoning as the RTC flavours.
-        Assert(!string.IsNullOrWhiteSpace(version), "getVersion returned nothing.");
-        Assert(
-            version!.Any(char.IsAsciiDigit) && version.Contains('.', StringComparison.Ordinal),
-            $"'{version}' does not look like a dotted version number.");
+        AssertLooksLikeAVersion(version);
     }
 
     private static void ConstructsTheClient()
@@ -252,16 +700,6 @@ public static class SmokeTests
         Report($"destroy returned {code}");
     }
 #else
-    [DllImport("/usr/lib/libobjc.A.dylib")]
-    private static extern IntPtr object_getClass(IntPtr obj);
-
-    [DllImport("/usr/lib/libobjc.A.dylib")]
-    [return: MarshalAs(UnmanagedType.I1)]
-    private static extern bool class_respondsToSelector(IntPtr cls, IntPtr sel);
-
-    [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
-    private static extern IntPtr IntPtr_objc_msgSend(IntPtr receiver, IntPtr selector);
-
     /// <summary>Reads <c>+[AgoraRtcEngineKit getSdkVersion]</c> and checks its shape.</summary>
     /// <remarks>
     /// Called through the Objective-C runtime rather than the binding, because the binding is
@@ -273,29 +711,11 @@ public static class SmokeTests
     /// </remarks>
     private static void ReportsTheSdkVersion()
     {
-        var cls = Class.GetHandle("AgoraRtcEngineKit");
-        Assert(cls != IntPtr.Zero, "AgoraRtcEngineKit did not resolve to a native class.");
-
-        var selector = Selector.GetHandle("getSdkVersion");
-
-        // A class method lives on the metaclass, which is what object_getClass returns for a
-        // class object. Checked before sending, so a renamed selector fails this assertion
-        // rather than raising an unrecognized-selector NSException mid-send.
-        Assert(
-            class_respondsToSelector(object_getClass(cls), selector),
-            "AgoraRtcEngineKit does not respond to +getSdkVersion.");
-
-        var version = Runtime.GetNSObject<Foundation.NSString>(IntPtr_objc_msgSend(cls, selector))?.ToString();
+        var version = ClassStringSelector("AgoraRtcEngineKit", "getSdkVersion");
 
         Report($"native SDK version {version ?? "(null)"}");
 
-        // The shape, not a pinned value: the pod version lives in Directory.Build.props and
-        // asserting it here would mean two places to edit on every bump, for a check whose point
-        // is only that a real version string came back across the bridge.
-        Assert(!string.IsNullOrWhiteSpace(version), "getSdkVersion returned nothing.");
-        Assert(
-            char.IsAsciiDigit(version![0]) && version.Contains('.', StringComparison.Ordinal),
-            $"'{version}' does not look like a dotted version number.");
+        AssertLooksLikeAVersion(version);
     }
 
     private static void ConstructsTheEngine()
@@ -440,7 +860,15 @@ public static class SmokeTests
         Assert(code == 0, $"'{what}' returned {code} rather than 0.");
     }
 
-    private static void Assert(bool condition, string message)
+    /// <summary>Fails the current check unless <paramref name="condition"/> holds.</summary>
+    /// <remarks>
+    /// The [DoesNotReturnIf] annotation is not decoration: without it the compiler cannot see that
+    /// a null check asserted here holds afterwards, and every follow-up use of the value needs a
+    /// null-forgiving <c>!</c> — which suppresses the next genuine one just as effectively.
+    /// </remarks>
+    private static void Assert(
+        [System.Diagnostics.CodeAnalysis.DoesNotReturnIf(false)] bool condition,
+        string message)
     {
         if (!condition)
         {
@@ -448,7 +876,21 @@ public static class SmokeTests
         }
     }
 
-#if AGORA_SIGNALING
+#if AGORA_WHITEBOARD || AGORA_FASTBOARD
+    // No delegate type in the board flavours. Both SDKs deliver every callback they have only
+    // after a room join, which this suite never performs, so a subclass would assert nothing the
+    // class-registration check above does not already cover.
+#elif AGORA_CHAT
+    /// <summary>
+    /// A subclass of the bound (all-optional) delegate protocol. Its existence at client
+    /// construction is the assertion; no callback in the bound surface fires without a connection.
+    /// </summary>
+    private sealed class ClientDelegate : AgoraChatClientDelegate
+    {
+        public override void ConnectionStateDidChange(AgoraChatConnectionState state) =>
+            SmokeTests.Reporter($"delegate: connection {state}");
+    }
+#elif AGORA_SIGNALING
     /// <summary>
     /// A subclass of the bound (all-optional) delegate protocol. Its existence at client
     /// construction is the assertion; no callback in the bound surface fires without a login.

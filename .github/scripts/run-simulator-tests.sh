@@ -9,8 +9,11 @@ set -euo pipefail
 #
 # Usage: run-simulator-tests.sh VERSION [TARGET_FRAMEWORK] [PACKAGE]
 #
-# PACKAGE is the packages.tsv id — Video (default) or Voice. One run exercises one package: both
-# ship a framework named AgoraRtcKit, so a single app holds exactly one of them.
+# PACKAGE is the packages.tsv id — Video (default), Voice, Signaling, Chat, Whiteboard or
+# Fastboard. One run exercises one package, and that is a constraint rather than a convenience: the
+# RTC pair both ship a framework named AgoraRtcKit, and Whiteboard and Fastboard both carry
+# netless's static library (Fastboard's contains Whiteboard's objects) and both declare
+# Whiteboard_Whiteboard.bundle. Signaling and Chat are separate products with their own suites.
 
 VERSION="${1:?a package version is required}"
 TARGET_FRAMEWORK="${2:-net10.0-ios26.0}"

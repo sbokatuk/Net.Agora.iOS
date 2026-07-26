@@ -150,12 +150,29 @@ jobs:
           retention-days: 7
 
   sample:
-    name: build sample app
-    timeout-minutes: 30
+    name: build sample app (${{ matrix.sample }})
+    # A Release build is several times a Debug one — it runs the managed linker and then AOT
+    # compiles every assembly, per target framework. Measured at ~9 minutes for one sample's two
+    # target frameworks on a developer machine, and CI runners are slower.
+    timeout-minutes: 45
     needs: pack
     # Off on a scoped track release — the tagged commit was validated on its PR. See validate.
     if: ${{ inputs.track == '' }}
     runs-on: macos-15
+    strategy:
+      # One leg per sample rather than three builds in one job. Release is expensive enough that
+      # three of them in series is a job that either times out or tells you nothing until it does,
+      # and a leg per sample says which app broke without reading a log.
+      #
+      # It also bounds disk. A Release build of one of these leaves about 5 GB in obj/ — AOT
+      # writes an assembly listing per assembly before the native toolchain consumes it — and
+      # three samples in one working copy is enough to fill a runner. Worth knowing because of how
+      # it fails: the AOT compiler is killed mid-write and MSBuild reports only "the AOT compiler
+      # exited with code 1", with no message and nothing about disk. Observed while developing
+      # this change, twice, before the cause was obvious.
+      fail-fast: false
+      matrix:
+        sample: [Net.Agora.Sample.iOS, Net.Agora.Sample.Voice.iOS, Net.Agora.Sample.Signaling.iOS]
     steps:
       - uses: actions/checkout@v4
 
@@ -180,34 +197,114 @@ jobs:
       # artifacts/ (see NuGet.config) and links against AgoraRtcEngineKit directly, with no
       # cross-platform façade in between.
       #
-      # Debug, and pinned to a simulator runtime identifier: a Release build triggers full AOT
-      # compilation and linking, which with the AgoraRtcKit framework costs real runner time for
-      # no added signal on whether the package restores and links correctly — same reasoning as
-      # FFmpegKit.iOS's sample job, whose first attempt at a Release build was killed after 48
-      # minutes. Both target frameworks the .NET 9 band covers are built, since at this cost it is
-      # free; the sample deliberately does not target net10 — the device tests cover that.
-      - name: Build the samples against the packed packages
+      # Release, not Debug. Debug leaves the managed linker switched off, so it could only answer
+      # whether the package restores and compiles — and a binding package's most interesting
+      # failure is downstream of that: the linker walks the whole assembly graph, and types
+      # reachable only through the Objective-C runtime are exactly the shape it can decide are
+      # dead. Release is also what turns on AOT, which is the other step a Debug build never runs.
+      # Both target frameworks the .NET 9 band covers are built; the samples deliberately do not
+      # target net10 — the device tests cover that.
+      - name: Build the sample against the packed packages
         run: |
           # Exact versions come from the pins plus the optional prerelease suffix — see
-          # build/pins.sh, and every package a sample references needs its own: the Video sample
-          # also consumes the Signaling package (the coexistence proof), whose unsuffixed default
-          # would not exist on a prerelease run. The Voice sample is its own app, since the two
-          # RTC packages cannot share one.
+          # build/pins.sh. All three are passed to every sample: a project ignores a property it
+          # never reads, and the alternative is a per-sample list that goes stale the first time a
+          # sample picks up another package. They cannot be left to default on a prerelease run,
+          # where the unsuffixed version does not exist.
           . ./build/pins.sh
           s="${{ inputs.suffix != '' && format('-{0}', inputs.suffix) || '' }}"
-          dotnet build samples/Net.Agora.Sample.iOS \
-            --configuration Debug \
+          dotnet build "samples/${{ matrix.sample }}" \
+            --configuration Release \
             -p:RuntimeIdentifier=iossimulator-arm64 \
             -p:AgoraVideoPackageVersion="${AGORA_VIDEO_PACKAGE_VERSION}${s}" \
+            -p:AgoraVoicePackageVersion="${AGORA_VOICE_PACKAGE_VERSION}${s}" \
             -p:AgoraSignalingPackageVersion="${AGORA_SIGNALING_PACKAGE_VERSION}${s}"
-          dotnet build samples/Net.Agora.Sample.Voice.iOS \
-            --configuration Debug \
-            -p:RuntimeIdentifier=iossimulator-arm64 \
-            -p:AgoraVoicePackageVersion="${AGORA_VOICE_PACKAGE_VERSION}${s}"
-          dotnet build samples/Net.Agora.Sample.Signaling.iOS \
-            --configuration Debug \
-            -p:RuntimeIdentifier=iossimulator-arm64 \
+
+  # What the sample job still cannot reach, because a simulator build is a different build.
+  #
+  # A Release simulator build does AOT compile (the SDK reaches for the
+  # Cross.iossimulator-arm64 pack), but everything native about it is the simulator: the AOT
+  # target, and a link against the simulator slice of every xcframework. A device runtime
+  # identifier is the configuration a shipping app is actually built with — AOT for arm64, and a
+  # native link against the *device* slice, which is a separate slice built from a separate
+  # archive and which nothing else in this pipeline links at all. The simulator legs would stay
+  # green through a package whose device slice was empty, mis-stripped or built for the wrong
+  # minimum OS version; this job is what notices.
+  #
+  # Two samples rather than all three: Video carries the largest native payload here (six
+  # xcframeworks, including the video_dec that AgoraRtcKit's binary links by path), and Signaling
+  # is the one whose device slice build/fetch-signaling.sh strips armv7 out of — so between them
+  # they cover both ways an arm64-only link can go wrong. The Voice sample links the same
+  # AgoraRtcKit machinery as Video by a different route.
+  device-link:
+    name: link for a device (${{ matrix.sample }})
+    timeout-minutes: 45
+    needs: pack
+    # Off on a scoped track release — the tagged commit was validated on its PR. See validate.
+    if: ${{ inputs.track == '' }}
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        sample: [Net.Agora.Sample.iOS, Net.Agora.Sample.Signaling.iOS]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: ./.github/scripts/select-xcode.sh
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui-ios
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      # One target framework, not both. Each band carries its own copy of the payload in the
+      # package, but the copies hold the same frameworks entry for entry — which the package tests
+      # assert directly, in Native_payload_is_the_same_across_target_frameworks — so a second band
+      # would spend another quarter of an hour linking native bits this one has already linked.
+      #
+      # Code signing off, because a public runner has neither a certificate nor a provisioning
+      # profile, and neither affects whether the thing links. That leaves the .app itself as the
+      # assertion: AOT and the native link both run before the bundle is assembled, so a failure
+      # in either never gets far enough to produce one.
+      - name: Link the sample for a real device
+        run: |
+          . ./build/pins.sh
+          s="${{ inputs.suffix != '' && format('-{0}', inputs.suffix) || '' }}"
+          tfm=net9.0-ios18.0
+          dotnet build "samples/${{ matrix.sample }}" \
+            --configuration Release \
+            --framework "${tfm}" \
+            -p:RuntimeIdentifier=ios-arm64 \
+            -p:EnableCodeSigning=false \
+            -p:AgoraVideoPackageVersion="${AGORA_VIDEO_PACKAGE_VERSION}${s}" \
+            -p:AgoraVoicePackageVersion="${AGORA_VOICE_PACKAGE_VERSION}${s}" \
             -p:AgoraSignalingPackageVersion="${AGORA_SIGNALING_PACKAGE_VERSION}${s}"
+
+          app="samples/${{ matrix.sample }}/bin/Release/${tfm}/ios-arm64/${{ matrix.sample }}.app"
+          if [ ! -d "${app}" ]; then
+            echo "::error::${app} was not produced"
+            exit 1
+          fi
+
+          # Reported rather than asserted on a count: how many assemblies survive the linker is
+          # the linker's business and moves with every SDK update. Zero of them would mean the
+          # build produced a bundle without AOT compiling anything, which is worth failing on.
+          images="$(find "${app}" -name '*.aotdata.arm64' | wc -l | tr -d ' ')"
+          echo "==> ${app}: ${images} AOT images"
+          if [ "${images}" -eq 0 ]; then
+            echo "::error::no AOT images in ${app} — the device build did not AOT compile"
+            exit 1
+          fi
 
   e2e:
     name: simulator smoke test (${{ matrix.package }}, ${{ matrix.target-framework }})
@@ -221,12 +318,19 @@ jobs:
       # "net8 only", "Voice only" and "all of them" point at very different causes.
       fail-fast: false
       matrix:
-        # One leg per package: the RTC pair ship a framework named AgoraRtcKit, so a single
-        # device test app holds exactly one of them — see tests/Net.Agora.iOS.DeviceTests.
-        # Signaling has no leg here yet: its packed binding is exercised end to end by the façade
-        # repository's own simulator suite, and this repository's package tests cover its layout
-        # and API surface.
-        package: [Video, Voice]
+        # One leg per package, because one app holds one product — see
+        # tests/Net.Agora.iOS.DeviceTests. The RTC pair ship a framework named AgoraRtcKit;
+        # Whiteboard and Fastboard both carry netless's static library and both declare
+        # Whiteboard_Whiteboard.bundle.
+        #
+        # Signaling and Chat are separate products (AgoraRtmKit, AgoraChat) and each gets its own
+        # leg, which is also where the generated awaitable surface is exercised against the real
+        # SDK rather than asserted from package metadata. The board legs are the only place the
+        # resource bundles are checked in a real app bundle: the package tests can see them inside
+        # the .nupkg, but nothing else here proves the buildTransitive/ .targets fires and stages
+        # them where the SDK's own bundle finder looks — and a missing bundle renders a blank board
+        # with no error at all.
+        package: [Video, Voice, Signaling, Chat, Whiteboard, Fastboard]
         target-framework: ${{ fromJSON(inputs.e2e-target-frameworks) }}
     steps:
       - uses: actions/checkout@v4
@@ -264,6 +368,9 @@ jobs:
             Video) base="${AGORA_VIDEO_PACKAGE_VERSION}" ;;
             Voice) base="${AGORA_VOICE_PACKAGE_VERSION}" ;;
             Signaling) base="${AGORA_SIGNALING_PACKAGE_VERSION}" ;;
+            Chat) base="${AGORA_CHAT_PACKAGE_VERSION}" ;;
+            Whiteboard) base="${AGORA_WHITEBOARD_PACKAGE_VERSION}" ;;
+            Fastboard) base="${AGORA_FASTBOARD_PACKAGE_VERSION}" ;;
           esac
           version="${base}${{ inputs.suffix != '' && format('-{0}', inputs.suffix) || '' }}"
           ./.github/scripts/run-simulator-tests.sh "${version}" "${{ matrix.target-framework }}" "${{ matrix.package }}"
