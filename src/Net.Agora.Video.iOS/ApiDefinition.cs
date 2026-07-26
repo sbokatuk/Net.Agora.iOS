@@ -64,7 +64,16 @@ namespace Net.Agora.Video.iOS {
 		nuint Volume { get; set; }
 	}
 
-	[BaseType (typeof (NSObject))]
+	// Delegates/Events: the generator turns every AgoraRtcEngineDelegate callback into a C# event
+	// on the engine (engine.DidJoinChannel += …), backed by an internal delegate it installs via
+	// the `delegate` property the first time an event is subscribed. One caveat inherited from
+	// how Apple bindings do this everywhere: events and a hand-assigned Delegate are mutually
+	// exclusive — subscribing an event replaces whatever delegate was set (including the one
+	// passed to SharedEngine), and assigning Delegate afterwards silently detaches the events.
+	// Pick one style per engine instance.
+	[BaseType (typeof (NSObject), Delegates = new [] { "WeakDelegate" }, Events = new [] { typeof (AgoraRtcEngineDelegate) })]
+	[DisableDefaultCtor] // The engine only exists through SharedEngine — `new AgoraRtcEngineKit()`
+	                     // compiled before this and handed back a broken non-shared instance.
 	public interface AgoraRtcEngineKit {
 
 		// + (instancetype)sharedEngineWithConfig:delegate:
@@ -76,6 +85,17 @@ namespace Net.Agora.Video.iOS {
 		[Static]
 		[Export ("destroy")]
 		void Destroy ();
+
+		// @property(nonatomic, weak) id<AgoraRtcEngineDelegate> delegate — the property behind
+		// SharedEngine's second argument. Weak: the engine does not root the delegate, so keep a
+		// reference alive on the caller's side or the callbacks stop with no error.
+		[Export ("delegate", ArgumentSemantic.Weak)]
+		[NullAllowed]
+		NSObject WeakDelegate { get; set; }
+
+		[Wrap ("WeakDelegate")]
+		[NullAllowed]
+		AgoraRtcEngineDelegate Delegate { get; set; }
 
 		// - (int)joinChannelByToken:channelId:info:uid:joinSuccess:
 		[Export ("joinChannelByToken:channelId:info:uid:joinSuccess:")]
@@ -259,42 +279,56 @@ namespace Net.Agora.Video.iOS {
 	[BaseType (typeof (NSObject))]
 	public interface AgoraRtcEngineDelegate {
 
+		// The [EventArgs] names below become public <name>EventArgs classes (the generator
+		// appends the suffix) feeding the events on AgoraRtcEngineKit — part of the package's
+		// API surface, so renaming one is a breaking change.
+
 		[Export ("rtcEngine:didJoinChannel:withUid:elapsed:")]
+		[EventArgs ("AgoraRtcDidJoinChannel")]
 		void DidJoinChannel (AgoraRtcEngineKit engine, string channel, nuint uid, nint elapsed);
 
 		[Export ("rtcEngine:didLeaveChannelWithStats:")]
+		[EventArgs ("AgoraRtcDidLeaveChannel")]
 		void DidLeaveChannel (AgoraRtcEngineKit engine, AgoraChannelStats stats);
 
 		[Export ("rtcEngine:didJoinedOfUid:elapsed:")]
+		[EventArgs ("AgoraRtcRemoteUserJoined")]
 		void DidJoinedOfUid (AgoraRtcEngineKit engine, nuint uid, nint elapsed);
 
 		[Export ("rtcEngine:didOfflineOfUid:reason:")]
+		[EventArgs ("AgoraRtcRemoteUserOffline")]
 		void DidOfflineOfUid (AgoraRtcEngineKit engine, nuint uid, AgoraUserOfflineReason reason);
 
 		[Export ("rtcEngine:didOccurError:")]
+		[EventArgs ("AgoraRtcErrorOccurred")]
 		void DidOccurError (AgoraRtcEngineKit engine, AgoraErrorCode errorCode);
 
 		// A remote user muting/unmuting their microphone or camera — the "who is muted" signals a
 		// call UI shows.
 		[Export ("rtcEngine:didAudioMuted:byUid:")]
+		[EventArgs ("AgoraRtcRemoteAudioMuted")]
 		void DidAudioMuted (AgoraRtcEngineKit engine, bool muted, nuint uid);
 
 		[Export ("rtcEngine:didVideoMuted:byUid:")]
+		[EventArgs ("AgoraRtcRemoteVideoMuted")]
 		void DidVideoMuted (AgoraRtcEngineKit engine, bool muted, nuint uid);
 
 		// Speaker volumes, at the cadence EnableAudioVolumeIndication configured. The speakers
 		// array carries the loudest few; uid 0 means the local user in the local callback.
 		[Export ("rtcEngine:reportAudioVolumeIndicationOfSpeakers:totalVolume:")]
+		[EventArgs ("AgoraRtcAudioVolumeIndicated")]
 		void ReportAudioVolumeIndication (AgoraRtcEngineKit engine, AgoraRtcAudioVolumeInfo[] speakers, nint totalVolume);
 
 		// - (void)rtcEngine:tokenPrivilegeWillExpire: — fire RenewToken from here.
 		[Export ("rtcEngine:tokenPrivilegeWillExpire:")]
+		[EventArgs ("AgoraRtcTokenPrivilegeWillExpire")]
 		void TokenPrivilegeWillExpire (AgoraRtcEngineKit engine, string token);
 
 		// The connection lifecycle (connecting/connected/reconnecting/...). The reason parameter
 		// is AgoraConnectionChangedReason — ~30 values; carried as its raw NSInteger rather than
 		// binding an enum consumers would mostly pass through as a number anyway.
 		[Export ("rtcEngine:connectionChangedToState:reason:")]
+		[EventArgs ("AgoraRtcConnectionChanged")]
 		void ConnectionChangedToState (AgoraRtcEngineKit engine, AgoraConnectionState state, nint reason);
 	}
 }

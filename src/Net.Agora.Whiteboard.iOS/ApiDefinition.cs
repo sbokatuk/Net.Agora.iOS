@@ -159,6 +159,14 @@ namespace Net.Agora.Whiteboard.iOS {
 	}
 
 	// WhiteRoom — WhiteRoom.h. The live session.
+	//
+	// The completion methods carry [Async] so driving the room is awaitable, but the generator
+	// shapes each by its block: a (value, NSError) pair becomes Task<Tuple<value, NSError?>>
+	// that always completes — check Item2, non-null means failure — because the generator only
+	// applies its fault-on-NSError convention once two or more non-error values remain (verified
+	// against the generated code; JoinRoom below is the shape that gets it). ResultTypeName is
+	// ignored on these two-parameter blocks and would only orphan the named class, so none is
+	// given. The callback overloads remain for consumers who want them.
 	[BaseType (typeof (WhiteDisplayer))]
 	[DisableDefaultCtor]
 	public interface WhiteRoom {
@@ -177,7 +185,10 @@ namespace Net.Agora.Whiteboard.iOS {
 		[Export ("setMemberState:")]
 		void SetMemberState (WhiteMemberState modifyState);
 
+		// SetWritableAsync — Task<Tuple<bool, NSError?>>: the acknowledged writability and the
+		// error slot, per the preamble.
 		[Export ("setWritable:completionHandler:")]
+		[Async]
 		void SetWritable (bool writable, [NullAllowed] WhiteWritableHandler completionHandler);
 
 		[Export ("undo")]
@@ -192,10 +203,16 @@ namespace Net.Agora.Whiteboard.iOS {
 		void CleanScene (bool retainPpt);
 
 		// Scenes are the board's pages, addressed by a path like "/dir/page1".
+		// SetScenePathAsync — Task<Tuple<bool, NSError?>>: netless's own success flag plus the
+		// error slot, per the preamble.
 		[Export ("setScenePath:completionHandler:")]
+		[Async]
 		void SetScenePath (string dirOrPath, [NullAllowed] WhiteScenePathHandler completionHandler);
 
+		// The block has no parameters, so DisconnectAsync is a plain Task that completes when
+		// the room has actually gone.
 		[Export ("disconnect:")]
+		[Async]
 		void Disconnect ([NullAllowed] Action completeHandler);
 	}
 
@@ -257,7 +274,13 @@ namespace Net.Agora.Whiteboard.iOS {
 		[Export ("initWithWhiteBoardView:config:commonCallbackDelegate:")]
 		NativeHandle Constructor (WhiteBoardView boardView, WhiteSdkConfiguration config, [NullAllowed] WhiteCommonCallbackDelegate callback);
 
+		// JoinRoomAsync returns Task<WhiteJoinRoomResult> holding the block's two success values
+		// (Success, Room) and FAULTS with an NSErrorException on a join failure: with two
+		// non-error values left the generator does apply its NSError convention (unlike the
+		// room's pair-shaped completions — see the WhiteRoom preamble), and netless populates
+		// the error only on genuine failure, so try/catch is the honest shape for a join.
 		[Export ("joinRoomWithConfig:callbacks:completionHandler:")]
+		[Async (ResultTypeName = "WhiteJoinRoomResult")]
 		void JoinRoom (WhiteRoomConfig config, [NullAllowed] WhiteRoomCallbackDelegate callbacks, WhiteJoinRoomHandler completionHandler);
 	}
 }

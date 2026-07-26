@@ -22,16 +22,16 @@
       the native artifact stays put.
     -->
     <AgoraVideoIosVersion>4.6.2</AgoraVideoIosVersion>
-    <AgoraVideoBindingRevision>4</AgoraVideoBindingRevision>
+    <AgoraVideoBindingRevision>5</AgoraVideoBindingRevision>
     <AgoraVoiceIosVersion>4.6.2</AgoraVoiceIosVersion>
-    <AgoraVoiceBindingRevision>4</AgoraVoiceBindingRevision>
+    <AgoraVoiceBindingRevision>5</AgoraVoiceBindingRevision>
     <!--
       Signaling (RTM) is a different product with its own native version line — 2.2.x, nothing to
       do with the RTC 4.6.x line above. See build/BuildNugets.sh for how releases handle packages
       whose versions do not move together.
     -->
     <AgoraSignalingIosVersion>2.2.6</AgoraSignalingIosVersion>
-    <AgoraSignalingBindingRevision>1</AgoraSignalingBindingRevision>
+    <AgoraSignalingBindingRevision>2</AgoraSignalingBindingRevision>
     <!--
       Chat is a third product on a third native line — 1.4.x. Its pod is Agora_Chat_iOS, not the
       AgoraChat pod on CocoaPods trunk: that one is the abandoned 3.8.x Easemob line and has
@@ -46,17 +46,17 @@
       unlike the RTC products there is no reason to expect them to meet.
     -->
     <AgoraWhiteboardIosVersion>2.16.137</AgoraWhiteboardIosVersion>
-    <AgoraWhiteboardBindingRevision>1</AgoraWhiteboardBindingRevision>
+    <AgoraWhiteboardBindingRevision>2</AgoraWhiteboardBindingRevision>
     <!--
       Fastboard is netless's UI layer over the Interactive Whiteboard, on its own line. Unlike every
       other product here it is Swift, so what this repository binds is not the SDK but the
       Objective-C shim in native/AgoraFastboardBridge — see build/build-fastboard.sh.
     -->
     <AgoraFastboardIosVersion>1.4.5</AgoraFastboardIosVersion>
-    <AgoraFastboardBindingRevision>1</AgoraFastboardBindingRevision>
+    <AgoraFastboardBindingRevision>2</AgoraFastboardBindingRevision>
     <AgoraChatIosVersion>1.4.0</AgoraChatIosVersion>
     <AgoraChatInfraIosVersion>1.3.5</AgoraChatInfraIosVersion>
-    <AgoraChatBindingRevision>1</AgoraChatBindingRevision>
+    <AgoraChatBindingRevision>2</AgoraChatBindingRevision>
     <!--
       The default for projects that do not pick their own line (tests, and the Video binding
       itself); the Voice .csproj overrides this with its own pair.

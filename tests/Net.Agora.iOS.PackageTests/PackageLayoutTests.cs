@@ -131,6 +131,29 @@ public class PackageLayoutTests
 
     [Theory]
     [MemberData(nameof(Packages.PackageIds), MemberType = typeof(Packages))]
+    public void Native_payload_carries_no_dead_architectures(string packageId)
+    {
+        using var package = Packages.OpenPackage(packageId);
+        using var payload = Packages.OpenNativePayload(package, packageId, PayloadTargetFramework);
+
+        // .NET for iOS has never supported 32-bit (armv7/i386) — .NET 6 launched arm64-only — so
+        // a slice advertising one is unreachable dead weight repeated once per packed target
+        // framework. Agora still builds the RTM device slice as ios-arm64_armv7;
+        // fetch-signaling.sh thins it with lipo and renames the slice, which is what this pins.
+        // The slice *name* is the sensitive part: the manifest's LibraryIdentifier must agree
+        // with the directory, so a stale name here means the thinning half-ran.
+        foreach (var framework in Packages.XcFrameworksOf(packageId))
+        {
+            Assert.All(SlicesOf(payload, framework), slice =>
+            {
+                Assert.DoesNotContain("armv7", slice, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("i386", slice, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Packages.PackageIds), MemberType = typeof(Packages))]
     public void Xcframework_manifests_match_the_slices_actually_shipped(string packageId)
     {
         using var package = Packages.OpenPackage(packageId);

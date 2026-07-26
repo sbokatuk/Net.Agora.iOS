@@ -113,27 +113,51 @@ namespace Net.Agora.Signaling.iOS {
 		[Export ("initWithConfig:delegate:error:")]
 		NativeHandle Constructor (AgoraRtmClientConfig config, [NullAllowed] AgoraRtmClientDelegate del, out NSError error);
 
+		// The completion methods carry [Async] so every operation also has an awaitable form:
+		// LoginAsync and friends return Task<AgoraRtmOperationResult> (a generated class holding
+		// the Response/ErrorInfo pair). The Task completes rather than faults on an RTM error —
+		// deliberately, because the SDK answers some successes with a non-nil errorInfo whose
+		// errorCode is 0 (Ok), so "errorInfo present" is not "failed"; callers check
+		// result.ErrorInfo?.ErrorCode. The callback overloads remain for consumers who want them.
+
 		// - (void)loginByToken:completion: — the token doubles as the App ID in projects with
 		// App ID-only authentication.
 		[Export ("loginByToken:completion:")]
+		[Async (ResultTypeName = "AgoraRtmOperationResult")]
 		void Login ([NullAllowed] string token, [NullAllowed] AgoraRtmOperationHandler completion);
 
 		[Export ("logout:")]
+		[Async (ResultTypeName = "AgoraRtmOperationResult")]
 		void Logout ([NullAllowed] AgoraRtmOperationHandler completion);
 
 		[Export ("renewToken:completion:")]
+		[Async (ResultTypeName = "AgoraRtmOperationResult")]
 		void RenewToken (string token, [NullAllowed] AgoraRtmOperationHandler completion);
 
 		[Export ("subscribeWithChannel:option:completion:")]
+		[Async (ResultTypeName = "AgoraRtmOperationResult")]
 		void Subscribe (string channelName, [NullAllowed] AgoraRtmSubscribeOptions option, [NullAllowed] AgoraRtmOperationHandler completion);
 
 		[Export ("unsubscribeWithChannel:completion:")]
+		[Async (ResultTypeName = "AgoraRtmOperationResult")]
 		void Unsubscribe (string channelName, [NullAllowed] AgoraRtmOperationHandler completion);
 
 		// - (void)publish:message:option:completion: — the string-payload overload; raw NSData has
 		// its own selector, unbound until the client needs it.
 		[Export ("publish:message:option:completion:")]
+		[Async (ResultTypeName = "AgoraRtmOperationResult")]
 		void Publish (string channelName, string message, [NullAllowed] AgoraRtmPublishOptions option, [NullAllowed] AgoraRtmOperationHandler completion);
+
+		// - (void)addDelegate: / removeDelegate: — RTM supports any number of listeners besides
+		// the one passed to the constructor. Bound so a consumer can attach a listener without
+		// owning client construction (the constructor-injected delegate remains for the common
+		// case). The kit holds these weakly: the caller must keep its listener referenced, same
+		// as the constructor delegate.
+		[Export ("addDelegate:")]
+		void AddDelegate (AgoraRtmClientDelegate del);
+
+		[Export ("removeDelegate:")]
+		void RemoveDelegate (AgoraRtmClientDelegate del);
 
 		// - (AgoraRtmErrorCode)destroy — synchronous teardown; the client is unusable afterwards.
 		[Export ("destroy")]

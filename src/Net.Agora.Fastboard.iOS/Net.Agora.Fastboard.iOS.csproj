@@ -61,6 +61,23 @@
       <Kind>Static</Kind>
       <ForceLoad>True</ForceLoad>
       <SmartLink>False</SmartLink>
+      <!--
+        This library is the only one in the repository that contains Swift — Fastboard is a Swift
+        pod and the shim over it is Swift too — so the app linking it needs the Swift runtime's
+        search paths. Without this the link fails with undefined
+        __swift_FORCE_LOAD_$_swiftCompatibility56 and __swift_FORCE_LOAD_$_swiftCompatibilityConcurrency.
+
+        Only .NET 8 needs telling. The .NET 9 and 10 iOS SDKs set LinkWithSwiftSystemLibraries
+        globally because their own runtime now depends on Swift, which is why this went unnoticed:
+        the package links on those bands for a reason that has nothing to do with Fastboard. The
+        .NET 8 SDK sets it only when a NativeReference asks, and this package advertises
+        net8.0-ios18.0 — so without this line it is a package that cannot be used on a target
+        framework it ships assets for. Caught by the Fastboard device-test flavour's net8 leg; see
+        tests/Net.Agora.iOS.DeviceTests.
+
+        Harmless on the newer bands, where the property is already true.
+      -->
+      <LinkWithSwiftSystemLibraries>True</LinkWithSwiftSystemLibraries>
       <Frameworks>WebKit AVFoundation CoreGraphics CoreText</Frameworks>
     </NativeReference>
   </ItemGroup>

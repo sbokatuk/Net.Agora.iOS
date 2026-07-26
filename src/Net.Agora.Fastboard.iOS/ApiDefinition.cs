@@ -98,7 +98,14 @@ namespace Net.Agora.Fastboard.iOS {
 		[Export ("disconnect")]
 		void Disconnect ();
 
+		// SetWritableAsync — Task<string?>: the block's one parameter becomes the task's result
+		// directly, so awaiting yields the error message, null meaning success — same null
+		// convention as the callback. No ResultTypeName: on a single-parameter block the
+		// generator ignores it and would emit the named class as an orphan (verified on Chat's
+		// single-value handlers). Join is not async-able at all — its outcome arrives on the
+		// delegate, per the comment on Join above.
 		[Export ("setWritable:completion:")]
+		[Async]
 		void SetWritable (bool writable, [NullAllowed] AgoraFastboardCompletionHandler completion);
 
 		// The tool, as one of the whiteboard SDK's appliance-name strings. Colour is a

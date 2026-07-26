@@ -203,8 +203,12 @@ namespace Net.Agora.Chat.iOS {
 		[return: NullAllowed]
 		AgoraChatConversation GetConversation ([NullAllowed] string conversationId);
 
+		// [Async] on a protocol member generates SendMessageAsync onto the interface's extension
+		// methods, so it is reachable from the IAgoraChatManager the client hands out. Completes
+		// rather than faults, like the client's methods above and for the same reason.
 		[Abstract]
 		[Export ("sendMessage:progress:completion:")]
+		[Async (ResultTypeName = "AgoraChatMessageResult")]
 		void SendMessage (AgoraChatMessage message, [NullAllowed] AgoraChatProgressHandler progress, [NullAllowed] AgoraChatMessageHandler completion);
 	}
 
@@ -293,14 +297,26 @@ namespace Net.Agora.Chat.iOS {
 		[Export ("removeDelegate:")]
 		void RemoveDelegate (NSObject aDelegate);
 
+		// The completion methods carry [Async] so every operation also has an awaitable form,
+		// like Signaling's. The Task completes rather than faults on a Chat error — necessarily,
+		// not just by Signaling's convention: AgoraChatError is not an NSError, so the generator
+		// has no error to fault with and hands the whole callback back as the result. A null
+		// error means success everywhere. ResultTypeName only where the handler carries more
+		// than one value: for the single-parameter AgoraChatCompletionHandler the generator
+		// returns Task<AgoraChatError> directly and would emit the named class as an orphan —
+		// verified against the generated code — so Logout/RenewToken name none.
+
 		[Export ("loginWithUsername:token:completion:")]
+		[Async (ResultTypeName = "AgoraChatLoginResult")]
 		void Login (string username, string token, [NullAllowed] AgoraChatLoginHandler completion);
 
 		// unbindDeviceToken only matters to an app that registered for APNs; pass false otherwise.
 		[Export ("logout:completion:")]
+		[Async]
 		void Logout (bool unbindDeviceToken, [NullAllowed] AgoraChatCompletionHandler completion);
 
 		[Export ("renewToken:completion:")]
+		[Async]
 		void RenewToken (string newToken, [NullAllowed] AgoraChatCompletionHandler completion);
 	}
 }

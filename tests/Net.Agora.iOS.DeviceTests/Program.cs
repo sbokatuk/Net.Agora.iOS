@@ -32,10 +32,11 @@ public sealed class AppDelegate : UIApplicationDelegate
 #pragma warning restore CA1422
         Window.MakeKeyAndVisible();
 
-        // On the main thread deliberately: AgoraRtcEngineKit dispatches its delegate callbacks on
-        // the main queue, and its own samples create and drive the engine from it. Nothing here
-        // blocks long enough to trip the watchdog — no check joins a channel or touches the
-        // network.
+        // On the main thread deliberately: the Agora kits dispatch their delegate callbacks and
+        // completion blocks through the main queue, and their own samples create and drive them
+        // from it — the Signaling flavour's awaitable check relies on this and pumps the run
+        // loop rather than blocking. Nothing here blocks long enough to trip the watchdog — no
+        // check joins a channel or touches the network.
         RunAndReport();
 
         return true;
