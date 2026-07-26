@@ -2,10 +2,10 @@
 
   <PropertyGroup>
     <!--
-      Which package to exercise (Video or Voice) and which of its target frameworks. Both go
-      through properties of our own: overriding TargetFramework directly on the command line
-      breaks restore, and the two packages cannot be referenced together — both ship a framework
-      named AgoraRtcKit, so one app holds one of them.
+      Which package to exercise (Video, Voice or Signaling) and which of its target frameworks.
+      Both go through properties of our own: overriding TargetFramework directly on the command
+      line breaks restore, and the RTC packages cannot be referenced together — both ship a
+      framework named AgoraRtcKit, so one app holds one of them.
     -->
     <AgoraDevicePackage Condition=" '$(AgoraDevicePackage)' == '' ">Video</AgoraDevicePackage>
     <AgoraDeviceTargetFramework Condition=" '$(AgoraDeviceTargetFramework)' == '' ">net9.0-ios18.0</AgoraDeviceTargetFramework>
@@ -15,8 +15,11 @@
       from the binary, and the Voice binding deliberately does not bind the video entry points.
       The smoke tests compile per flavour — different using, different framework list, different
       checks — rather than probing at runtime, so every remaining assertion stays strict.
+      Signaling is a different product entirely (AgoraRtmKit), with its own flavour of the suite —
+      the one that exercises an [Async] method end-to-end.
     -->
     <DefineConstants Condition=" '$(AgoraDevicePackage)' == 'Voice' ">$(DefineConstants);AGORA_VOICE</DefineConstants>
+    <DefineConstants Condition=" '$(AgoraDevicePackage)' == 'Signaling' ">$(DefineConstants);AGORA_SIGNALING</DefineConstants>
     <OutputType>Exe</OutputType>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -57,6 +60,7 @@
   -->
   <PropertyGroup>
     <AgoraDevicePackageVersion Condition=" '$(AgoraDevicePackageVersion)' == '' And '$(AgoraDevicePackage)' == 'Voice' ">$(AgoraVoiceIosVersion).$(AgoraVoiceBindingRevision)</AgoraDevicePackageVersion>
+    <AgoraDevicePackageVersion Condition=" '$(AgoraDevicePackageVersion)' == '' And '$(AgoraDevicePackage)' == 'Signaling' ">$(AgoraSignalingIosVersion).$(AgoraSignalingBindingRevision)</AgoraDevicePackageVersion>
     <AgoraDevicePackageVersion Condition=" '$(AgoraDevicePackageVersion)' == '' ">$(VersionPrefix)</AgoraDevicePackageVersion>
   </PropertyGroup>
 

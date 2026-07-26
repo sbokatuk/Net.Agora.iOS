@@ -9,7 +9,10 @@ namespace Net.Agora.Sample.iOS;
 /// remote user's video — the same flow as Net.Agora/samples/Net.Agora.Sample, but built directly
 /// against <see cref="AgoraRtcEngineKit"/> rather than the cross-platform façade, since that
 /// façade lives in a separate repository this one does not depend on. Flip and Mute drive the
-/// raw camera/mute surface; every call answers an Agora error code, 0 for success.
+/// raw camera/mute surface; every call answers an Agora error code, 0 for success. Engine
+/// callbacks are consumed as the binding's generated C# events (<c>engine.DidJoinedOfUid += …</c>)
+/// rather than through a hand-written <c>AgoraRtcEngineDelegate</c> subclass — see the comment at
+/// the subscription site for the one rule that choice comes with.
 ///
 /// The Signaling button drives <see cref="AgoraRtmClientKit"/> from the same app: the two
 /// products coexist (different frameworks, different classes), which this sample proves at
@@ -20,7 +23,6 @@ public partial class MainPage : ContentPage
     private readonly StringBuilder _status = new();
 
     private AgoraRtcEngineKit? _engine;
-    private EngineDelegate? _delegate;
     private nuint? _remoteUid;
     private bool _muted;
 
@@ -57,8 +59,40 @@ public partial class MainPage : ContentPage
         }
 
         var config = new AgoraRtcEngineConfig { AppId = appId };
-        _delegate = new EngineDelegate(this);
-        var engine = AgoraRtcEngineKit.SharedEngine(config, _delegate);
+
+        // No delegate at construction: this sample consumes the engine's callbacks as C# events,
+        // and events and a hand-assigned delegate are mutually exclusive — the first subscription
+        // installs the binding's internal delegate, replacing whatever SharedEngine was given, and
+        // assigning Delegate afterwards would silently detach every event. One style per engine
+        // instance; the Voice sample shows the delegate-subclass style.
+        var engine = AgoraRtcEngineKit.SharedEngine(config, null);
+
+        // The SDK raises these on its own thread; Append dispatches itself, so only the handlers
+        // that touch views hop to the main thread explicitly.
+        engine.DidJoinChannel += (_, args) => Append($"joined {args.Channel} as {args.Uid}");
+        engine.DidLeaveChannel += (_, _) => Append("left channel");
+        engine.DidOccurError += (_, args) => Append($"error {args.ErrorCode}");
+
+        engine.DidJoinedOfUid += (_, args) => MainThread.BeginInvokeOnMainThread(() =>
+        {
+            Append($"remote user joined: {args.Uid}");
+
+            // Only one remote view in this sample — the first remote user gets it.
+            if (_remoteUid is null && RemoteView.PlatformView is { } remoteView)
+            {
+                _remoteUid = args.Uid;
+                _engine?.SetupRemoteVideo(new AgoraRtcVideoCanvas { Uid = args.Uid, View = remoteView });
+            }
+        });
+
+        engine.DidOfflineOfUid += (_, args) => MainThread.BeginInvokeOnMainThread(() =>
+        {
+            Append($"remote user left: {args.Uid}");
+            if (_remoteUid == args.Uid)
+            {
+                _remoteUid = null;
+            }
+        });
 
         engine.SetupLocalVideo(new AgoraRtcVideoCanvas { Uid = 0, View = localView });
         engine.EnableVideo();
@@ -75,7 +109,6 @@ public partial class MainPage : ContentPage
         _engine?.LeaveChannel(null);
         AgoraRtcEngineKit.Destroy();
         _engine = null;
-        _delegate = null;
         _remoteUid = null;
         SetJoined(false);
         Append("left");
@@ -118,7 +151,7 @@ public partial class MainPage : ContentPage
             : $"muteLocalAudioStream returned {code}");
     }
 
-    private void OnSignalingClicked(object? sender, EventArgs e)
+    private async void OnSignalingClicked(object? sender, EventArgs e)
     {
         var appId = AppIdEntry.Text?.Trim();
         if (string.IsNullOrEmpty(appId))
@@ -128,9 +161,10 @@ public partial class MainPage : ContentPage
         }
 
         // The raw RTM surface, from the same process the RTC engine runs in. Login is a live
-        // signalling call reported through a completion block; with an unregistered App ID it
-        // answers an error, which is exactly what this demo shows — the round trip, credentials
-        // or not. The façade's Net.Agora.Signaling wraps this into awaitable calls.
+        // signalling call, awaited through the binding's own LoginAsync; with an unregistered
+        // App ID it answers an error, which is exactly what this demo shows — the round trip,
+        // credentials or not. The Task completes rather than faults, so the error is read off
+        // the result — see the Signaling sample for the whole awaitable surface.
         var config = new AgoraRtmClientConfig(appId, "net-agora-sample");
         var rtm = new AgoraRtmClientKit(config, del: null, out var error);
         if (rtm.Handle == ObjCRuntime.NativeHandle.Zero)
@@ -140,13 +174,11 @@ public partial class MainPage : ContentPage
         }
 
         Append("RTM created — logging in…");
-        rtm.Login(appId, (response, errorInfo) => MainThread.BeginInvokeOnMainThread(() =>
-        {
-            Append(errorInfo is null || errorInfo.ErrorCode == 0
-                ? "RTM login succeeded"
-                : $"RTM login answered: {errorInfo.Reason}");
-            rtm.Destroy();
-        }));
+        var login = await rtm.LoginAsync(appId);
+        Append(login.ErrorInfo is null or { ErrorCode: 0 }
+            ? "RTM login succeeded"
+            : $"RTM login answered: {login.ErrorInfo.Reason}");
+        rtm.Destroy();
     }
 
     private void Append(string message) => MainThread.BeginInvokeOnMainThread(() =>
@@ -167,49 +199,6 @@ public partial class MainPage : ContentPage
             _engine.LeaveChannel(null);
             AgoraRtcEngineKit.Destroy();
             _engine = null;
-            _delegate = null;
         }
-    }
-
-    /// <summary>
-    /// Translates <c>AgoraRtcEngineDelegate</c>'s (all-optional) callbacks into UI updates. join/
-    /// leave success is also reported through the block parameters on JoinChannel/LeaveChannel,
-    /// but the delegate is used uniformly here so both entry points (the initial join and a
-    /// server-initiated rejoin) go through the same path — same reasoning as the façade repo's
-    /// Platforms/Apple/AgoraVideoClient.cs.
-    /// </summary>
-    private sealed class EngineDelegate(MainPage owner) : AgoraRtcEngineDelegate
-    {
-        public override void DidJoinChannel(AgoraRtcEngineKit engine, string channel, nuint uid, nint elapsed) =>
-            owner.Append($"joined {channel} as {uid}");
-
-        public override void DidLeaveChannel(AgoraRtcEngineKit engine, AgoraChannelStats stats) =>
-            owner.Append("left channel");
-
-        public override void DidJoinedOfUid(AgoraRtcEngineKit engine, nuint uid, nint elapsed) =>
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                owner.Append($"remote user joined: {uid}");
-
-                // Only one remote view in this sample — the first remote user gets it.
-                if (owner._remoteUid is null && owner.RemoteView.PlatformView is { } remoteView)
-                {
-                    owner._remoteUid = uid;
-                    owner._engine?.SetupRemoteVideo(new AgoraRtcVideoCanvas { Uid = uid, View = remoteView });
-                }
-            });
-
-        public override void DidOfflineOfUid(AgoraRtcEngineKit engine, nuint uid, AgoraUserOfflineReason reason) =>
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                owner.Append($"remote user left: {uid}");
-                if (owner._remoteUid == uid)
-                {
-                    owner._remoteUid = null;
-                }
-            });
-
-        public override void DidOccurError(AgoraRtcEngineKit engine, AgoraErrorCode errorCode) =>
-            owner.Append($"error {errorCode}");
     }
 }

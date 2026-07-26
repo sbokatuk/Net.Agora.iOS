@@ -8,11 +8,13 @@ namespace Net.Agora.Sample.Signaling.iOS;
 /// <c>Net.Agora.Signaling.iOS</c> binding rather than the cross-platform façade — the point of
 /// this sample is to show what <c>Net.Agora.Signaling</c> hides.
 ///
-/// Every operation here takes an Objective-C completion block (login, subscribe, publish), and
-/// events arrive on an <c>AgoraRtmClientDelegate</c>. The façade in <c>sbokatuk/Net.Agora</c>
-/// turns all of that into awaitable calls and ordinary .NET events; if that is what you want, use
-/// <c>Net.Agora.Signaling</c> instead, which <c>samples/Net.Agora.Sample.Signaling</c> there
-/// demonstrates.
+/// The binding itself is awaitable now: every completion-block method carries an [Async]
+/// counterpart (<c>LoginAsync</c>, <c>SubscribeAsync</c>, <c>PublishAsync</c>, …), so this page
+/// awaits them in a straight line instead of nesting completion blocks. Each Task completes —
+/// rather than faults — with the (Response, ErrorInfo) pair, because the SDK answers some
+/// successes with a non-nil errorInfo whose code is 0; success is therefore checked as
+/// <c>result.ErrorInfo?.ErrorCode</c>. Events still arrive on an <c>AgoraRtmClientDelegate</c>.
+/// The façade in <c>sbokatuk/Net.Agora</c> layers ordinary .NET events over those too.
 /// </summary>
 public partial class MainPage : ContentPage
 {
@@ -26,7 +28,11 @@ public partial class MainPage : ContentPage
         InitializeComponent();
     }
 
-    private void OnLoginClicked(object sender, EventArgs e)
+    // The SDK fires its completion blocks off the main thread, but awaiting from a UI event
+    // handler captures MAUI's SynchronizationContext, so everything after each await below is
+    // back on the main thread — which is why, unlike the completion-block version of this page,
+    // no callback needs a MainThread.BeginInvokeOnMainThread hop of its own.
+    private async void OnLoginClicked(object sender, EventArgs e)
     {
         var appId = AppIdEntry.Text?.Trim();
         var userId = UserIdEntry.Text?.Trim();
@@ -56,54 +62,50 @@ public partial class MainPage : ContentPage
         _channel = channel;
 
         // An App ID-only project logs in with the App ID as the token.
-        _client.Login(appId, (response, errorInfo) =>
+        var login = await _client.LoginAsync(appId);
+        if (login.ErrorInfo is { ErrorCode: not 0 })
         {
-            if (errorInfo is not null && errorInfo.ErrorCode != 0)
-            {
-                Append($"login failed: {errorInfo.Reason}");
-                MainThread.BeginInvokeOnMainThread(() => LoginButton.IsEnabled = true);
-                return;
-            }
-
-            Subscribe(channel);
-        });
-    }
-
-    private void Subscribe(string channel) =>
-        _client?.Subscribe(channel, option: null, (response, errorInfo) =>
-        {
-            if (errorInfo is not null && errorInfo.ErrorCode != 0)
-            {
-                Append($"subscribe failed: {errorInfo.Reason}");
-                return;
-            }
-
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                Append($"logged in and subscribed to {channel}");
-                SetLoggedIn(true);
-            });
-        });
-
-    private void OnLogoutClicked(object sender, EventArgs e)
-    {
-        if (_client is not null && _channel is not null)
-        {
-            _client.Unsubscribe(_channel, (response, errorInfo) =>
-                Append(errorInfo is { ErrorCode: not 0 }
-                    ? $"unsubscribe failed: {errorInfo.Reason}"
-                    : $"unsubscribed from {_channel}"));
+            Append($"login failed: {login.ErrorInfo.Reason}");
+            LoginButton.IsEnabled = true;
+            return;
         }
 
-        _client?.Logout(null);
-        _client?.Destroy();
+        var subscribe = await _client.SubscribeAsync(channel, option: null);
+        if (subscribe.ErrorInfo is { ErrorCode: not 0 })
+        {
+            Append($"subscribe failed: {subscribe.ErrorInfo.Reason}");
+            return;
+        }
+
+        Append($"logged in and subscribed to {channel}");
+        SetLoggedIn(true);
+    }
+
+    private async void OnLogoutClicked(object sender, EventArgs e)
+    {
+        if (_client is not null)
+        {
+            if (_channel is not null)
+            {
+                var unsubscribe = await _client.UnsubscribeAsync(_channel);
+                Append(unsubscribe.ErrorInfo is { ErrorCode: not 0 }
+                    ? $"unsubscribe failed: {unsubscribe.ErrorInfo.Reason}"
+                    : $"unsubscribed from {_channel}");
+            }
+
+            // Awaited so Destroy provably runs after the logout finished — the completion-block
+            // version fired Logout and destroyed the client in the same breath.
+            await _client.LogoutAsync();
+            _client.Destroy();
+        }
+
         _client = null;
         _channel = null;
         Append("logged out");
         SetLoggedIn(false);
     }
 
-    private void OnSendClicked(object sender, EventArgs e)
+    private async void OnSendClicked(object sender, EventArgs e)
     {
         var message = MessageEntry.Text;
         if (_client is null || _channel is null || string.IsNullOrWhiteSpace(message))
@@ -111,21 +113,16 @@ public partial class MainPage : ContentPage
             return;
         }
 
-        _client.Publish(_channel, message, option: null, (response, errorInfo) =>
+        var publish = await _client.PublishAsync(_channel, message, option: null);
+        if (publish.ErrorInfo is { ErrorCode: not 0 })
         {
-            if (errorInfo is not null && errorInfo.ErrorCode != 0)
-            {
-                Append($"send failed: {errorInfo.Reason}");
-                return;
-            }
+            Append($"send failed: {publish.ErrorInfo.Reason}");
+            return;
+        }
 
-            // A publisher does not receive its own message back — echo it locally.
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                Append($"you: {message}");
-                MessageEntry.Text = "";
-            });
-        });
+        // A publisher does not receive its own message back — echo it locally.
+        Append($"you: {message}");
+        MessageEntry.Text = "";
     }
 
     private void SetLoggedIn(bool loggedIn)
