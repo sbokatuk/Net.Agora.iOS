@@ -1,0 +1,27 @@
+# What the upstream-drift workflow watches, and the single source of truth for it.
+#
+# build/check-upstream.sh reads this; it knows how to query each ecosystem but nothing about which
+# components this repository binds. Adding a native SDK means adding a row here.
+#
+# Columns are single-tab-separated.
+#   group    reporting group - one GitHub issue per group, titled with this text. These mirror the
+#            release tracks in build/tracks.tsv on purpose: a drift report then lands on the same
+#            axis as the release that fixes it, instead of mixing RTC and Chat news into one thread.
+#   label    how the component is named inside the issue
+#   kind     cocoapods | maven | github-release | github-tag
+#   pin      the MSBuild property in Directory.Build.props holding the pinned version
+#   locator  kind-specific: pod name, groupId:artifactId[:packaging][@repo], or owner/repo
+#   confirm  download URL template with {version}, or "-" to follow the vendor's own pointer
+#            (for CocoaPods, the podspec's source - the same URL build/fetch-*.sh resolves)
+#
+# group	label	kind	pin	locator	confirm
+RTC	Agora RTC (Video)	cocoapods	AgoraVideoIosVersion	AgoraRtcEngine_iOS	-
+RTC	Agora RTC (Voice)	cocoapods	AgoraVoiceIosVersion	AgoraAudio_iOS	-
+Signaling	Agora Signaling (RTM)	cocoapods	AgoraSignalingIosVersion	AgoraRtm_iOS	-
+Chat	Agora Chat	cocoapods	AgoraChatIosVersion	Agora_Chat_iOS	-
+Chat	Agora Chat Infra	cocoapods	AgoraChatInfraIosVersion	AgoraInfra_iOS	-
+Whiteboard	netless Whiteboard	cocoapods	AgoraWhiteboardIosVersion	Whiteboard	-
+# Fastboard is built from source by build/build-fastboard.sh (the pod pulls in dependencies this
+# repository binds separately), so the tag existing upstream is the whole of the signal - there is
+# no archive to confirm.
+Fastboard	netless Fastboard	github-tag	AgoraFastboardIosVersion	netless-io/fastboard-iOS	-
