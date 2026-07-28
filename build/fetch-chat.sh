@@ -16,7 +16,7 @@ set -euo pipefail
 # Usage:
 #   ./build/fetch-chat.sh                  # the versions pinned in Directory.Build.props
 #   ./build/fetch-chat.sh 1.4.0            # an explicit Chat version, pinned Infra version
-#   ./build/fetch-chat.sh 1.4.0 1.3.5      # both explicit
+#   ./build/fetch-chat.sh 1.4.0 1.3.9      # both explicit
 #
 # The pod is Agora_Chat_iOS. Note the underscores: the AgoraChat pod on CocoaPods trunk is the
 # abandoned 3.8.x Easemob line and is not this SDK. Check what is actually published before
