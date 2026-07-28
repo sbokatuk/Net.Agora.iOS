@@ -164,7 +164,7 @@ jobs:
     # A Release build is several times a Debug one — it runs the managed linker and then AOT
     # compiles every assembly, per target framework. Measured at ~9 minutes for one sample's two
     # target frameworks on a developer machine, and CI runners are slower.
-    timeout-minutes: 45
+    timeout-minutes: 90
     needs: pack
     # Off on a scoped track release — the tagged commit was validated on its PR. See validate.
     if: ${{ inputs.verify }}
