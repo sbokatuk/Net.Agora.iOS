@@ -94,6 +94,27 @@ dotnet test tests/Net.Agora.iOS.PackageTests
 The fetch scripts refuse to proceed if the downloaded archive's hash doesn't match
 `build/checksums.txt` — see that file for how to record a new version's hash.
 
+### Outbound hosts
+
+Everything the scripts and workflows here reach, which is the list to allow anywhere the build runs
+behind an egress filter:
+
+| Host | Reached by |
+| --- | --- |
+| `download.agora.io` | every `build/fetch-*.sh` — the SDK archives themselves |
+| `trunk.cocoapods.org` | `build/check-upstream.sh`'s discover stage, and the podspec lookups the fetch scripts document |
+| `cdn.cocoapods.org` | the CocoaPods CDN behind those podspecs |
+| `repo1.maven.org` | `build/check-upstream.sh`'s `maven` kind |
+| `github.com`, `api.github.com` | `build/build-whiteboard.sh` and `build-fastboard.sh` clone netless-io at a pinned commit; `check-upstream.sh` queries the releases and tags APIs |
+| `api.nuget.org`, `www.nuget.org` | restore and publish |
+
+This matters for the Copilot coding agent in particular: it works behind a firewall that blocks
+`download.agora.io` by default, so a re-pin task cannot download an archive to hash it and stalls
+exactly where `build/checksums.txt` needs a new line. The allowlist lives in **Settings → Copilot →
+Coding agent → Firewall**, as custom allowed addresses alongside the recommended list — not by
+disabling the firewall, which is the whole reason the hashes in `build/checksums.txt` are worth
+anything.
+
 No single .NET SDK builds net8, net9 *and* net10 for iOS, so `BuildNugets.sh` packs twice (the
 installed SDK's band, then a `net10` pass from a scratch `global.json`) and merges the results —
 see `build/merge-packages.py`.
