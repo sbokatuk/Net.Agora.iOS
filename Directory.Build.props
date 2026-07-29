@@ -55,8 +55,8 @@
     <AgoraFastboardIosVersion>1.4.5</AgoraFastboardIosVersion>
     <AgoraFastboardBindingRevision>2</AgoraFastboardBindingRevision>
     <AgoraChatIosVersion>1.4.0</AgoraChatIosVersion>
-    <AgoraChatInfraIosVersion>1.3.5</AgoraChatInfraIosVersion>
-    <AgoraChatBindingRevision>2</AgoraChatBindingRevision>
+    <AgoraChatInfraIosVersion>1.3.9</AgoraChatInfraIosVersion>
+    <AgoraChatBindingRevision>3</AgoraChatBindingRevision>
     <!--
       The default for projects that do not pick their own line (tests, and the Video binding
       itself); the Voice .csproj overrides this with its own pair.

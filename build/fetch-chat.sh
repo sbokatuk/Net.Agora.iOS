@@ -16,7 +16,7 @@ set -euo pipefail
 # Usage:
 #   ./build/fetch-chat.sh                  # the versions pinned in Directory.Build.props
 #   ./build/fetch-chat.sh 1.4.0            # an explicit Chat version, pinned Infra version
-#   ./build/fetch-chat.sh 1.4.0 1.3.5      # both explicit
+#   ./build/fetch-chat.sh 1.4.0 1.3.9      # both explicit
 #
 # The pod is Agora_Chat_iOS. Note the underscores: the AgoraChat pod on CocoaPods trunk is the
 # abandoned 3.8.x Easemob line and is not this SDK. Check what is actually published before
@@ -113,7 +113,50 @@ for framework in AgoraChat aosl; do
     cp -R "$WORK/extracted/$framework.xcframework" "$DEST/"
 done
 
+# AgoraInfra_iOS 1.3.9 builds its device slice as ios-arm64_armv7 — a fat armv7 + arm64 binary —
+# where 1.3.5 shipped a thin ios-arm64. .NET for iOS has never supported 32-bit armv7 (.NET 6
+# launched arm64-only), so the extra architecture is unreachable dead weight repeated once per
+# packed target framework, and the package tests hold the payload to 64-bit slices.
+#
+# Same treatment as fetch-signaling.sh, which has thinned the RTM device slice from the start:
+# lipo removes armv7 from the Mach-O, the slice directory is renamed to plain ios-arm64, and the
+# manifest entry is rewritten to match — identifier and SupportedArchitectures both, because the
+# iOS SDK cross-checks them against the binary and rejects an xcframework whose AvailableLibraries
+# points at a directory that is not there.
+#
+# This runs over both staged xcframeworks rather than just aosl: AgoraChat is arm64-only today,
+# but the loop costs nothing and the next Chat release is as free to regress the same way.
+# Archives that are already thin fall through untouched.
+python3 - "$DEST" <<'PYEOF'
+import plistlib, subprocess, sys
+from pathlib import Path
+
+dest = Path(sys.argv[1])
+for manifest in dest.glob("*.xcframework/Info.plist"):
+    bundle = manifest.parent
+    with open(manifest, "rb") as f:
+        plist = plistlib.load(f)
+
+    for library in plist["AvailableLibraries"]:
+        identifier = library["LibraryIdentifier"]
+        architectures = library.get("SupportedArchitectures", [])
+        if "armv7" not in architectures:
+            continue
+
+        framework = bundle / identifier / library["LibraryPath"]
+        binary = framework / framework.stem
+        subprocess.run(["lipo", binary, "-remove", "armv7", "-output", binary], check=True)
+
+        new_identifier = identifier.replace("_armv7", "").replace("armv7_", "")
+        (bundle / identifier).rename(bundle / new_identifier)
+        library["LibraryIdentifier"] = new_identifier
+        library["SupportedArchitectures"] = [a for a in architectures if a != "armv7"]
+
+    with open(manifest, "wb") as f:
+        plistlib.dump(plist, f)
+    print(f"{bundle.name}: {', '.join(l['LibraryIdentifier'] for l in plist['AvailableLibraries'])}")
+PYEOF
+
 echo "Staged $(ls "$DEST" | wc -l | tr -d ' ') frameworks into $DEST"
-echo "Both archives ship ios-arm64 and ios-arm64_x86_64-simulator only — no visionOS slices to"
-echo "strip (unlike Signaling) and no maccatalyst slice, so there is no Net.Agora.Chat.Mac"
-echo "project. See README.md."
+echo "Neither archive ships a visionOS slice (unlike Signaling) or a maccatalyst one, so there is"
+echo "no Net.Agora.Chat.Mac project. See README.md."
