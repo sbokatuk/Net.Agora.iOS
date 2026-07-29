@@ -7,6 +7,16 @@ name: build
 on:
   workflow_call:
     inputs:
+      verify:
+        description: >
+          Whether to run the verification jobs — package validation, the sample builds, the
+          Release link checks and the e2e suites. Pull requests leave it at true, and are the only
+          place any of this runs. Releases pass false: the tagged commit was already verified on
+          its pull request, so a tag packs and publishes and nothing more. The gate is the same
+          input, with the same name and the same meaning, in every repository.
+        required: false
+        default: true
+        type: boolean
       suffix:
         description: >
           Optional prerelease suffix (e.g. beta.12.34) appended to every package's own version.
@@ -121,7 +131,7 @@ jobs:
     needs: pack
     # Skipped on a scoped track release: the package tests assert the whole package set, which a
     # single-track pack does not produce — and the merged commit already ran them on its PR.
-    if: ${{ inputs.track == '' }}
+    if: ${{ inputs.verify }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -154,10 +164,10 @@ jobs:
     # A Release build is several times a Debug one — it runs the managed linker and then AOT
     # compiles every assembly, per target framework. Measured at ~9 minutes for one sample's two
     # target frameworks on a developer machine, and CI runners are slower.
-    timeout-minutes: 45
+    timeout-minutes: 90
     needs: pack
     # Off on a scoped track release — the tagged commit was validated on its PR. See validate.
-    if: ${{ inputs.track == '' }}
+    if: ${{ inputs.verify }}
     runs-on: macos-15
     strategy:
       # One leg per sample rather than three builds in one job. Release is expensive enough that
@@ -241,7 +251,7 @@ jobs:
     timeout-minutes: 45
     needs: pack
     # Off on a scoped track release — the tagged commit was validated on its PR. See validate.
-    if: ${{ inputs.track == '' }}
+    if: ${{ inputs.verify }}
     runs-on: macos-15
     strategy:
       fail-fast: false
@@ -311,7 +321,7 @@ jobs:
     timeout-minutes: 45
     needs: pack
     # Off on a scoped track release — the tagged commit was device-tested on its PR. See validate.
-    if: ${{ inputs.track == '' }}
+    if: ${{ inputs.verify }}
     runs-on: macos-15
     strategy:
       # fail-fast off: when one leg breaks it is worth knowing whether the others did too, since
