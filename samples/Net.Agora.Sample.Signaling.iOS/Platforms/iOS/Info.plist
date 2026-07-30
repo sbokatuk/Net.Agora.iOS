@@ -28,6 +28,13 @@
 	</array>
 	<key>XSAppIconAssets</key>
 	<string>Assets.xcassets/appicon.appiconset</string>
+	<!--
+	  Without a launch screen, iOS treats the app as pre-iOS 8 and runs it letterboxed at the old
+	  3.5"/4" resolution instead of the device's real size. An empty dict is enough to opt in to a
+	  plain system-default launch screen — no storyboard file needed.
+	-->
+	<key>UILaunchScreen</key>
+	<dict/>
 	<!-- No camera or microphone usage descriptions: Signaling (RTM) touches neither. -->
 </dict>
 </plist>

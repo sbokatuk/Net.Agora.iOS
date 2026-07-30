@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:Net.Agora.Sample.Fastboard.iOS"
+             x:Class="Net.Agora.Sample.Fastboard.iOS.MainPage"
+             Title="Net.Agora Fastboard (raw)">
+
+    <Grid Padding="12" RowSpacing="8" RowDefinitions="Auto,Auto,*,Auto,Auto">
+
+        <Entry x:Name="AppIdentifierEntry" Grid.Row="0" Placeholder="Whiteboard App Identifier (org/app)" />
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Entry x:Name="RoomUuidEntry" Placeholder="Room UUID" />
+            <Entry x:Name="RoomTokenEntry" Grid.Column="1" Placeholder="Room token" />
+        </Grid>
+
+        <!--
+            The board *and its toolbar* — Fastboard brings tools, colours, undo/redo and page
+            navigation with it, drawn straight onto the UIView the shim hands back.
+        -->
+        <local:FastboardHostView x:Name="Board" Grid.Row="2" />
+
+        <HorizontalStackLayout Grid.Row="3" Spacing="8">
+            <Button x:Name="JoinButton" Text="Join" Clicked="OnJoinClicked" />
+            <Button x:Name="LeaveButton" Text="Leave" Clicked="OnLeaveClicked" IsEnabled="False" />
+            <Button x:Name="ReadOnlyButton" Text="Read-only" Clicked="OnReadOnlyClicked" IsEnabled="False" />
+            <Button x:Name="RedPencilButton" Text="Red pencil" Clicked="OnRedPencilClicked" IsEnabled="False" />
+        </HorizontalStackLayout>
+
+        <Label x:Name="StatusLabel" Grid.Row="4" FontFamily="OpenSansRegular" FontSize="12" LineBreakMode="TailTruncation" />
+
+    </Grid>
+
+</ContentPage>

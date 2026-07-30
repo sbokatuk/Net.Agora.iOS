@@ -1,5 +1,4 @@
 using System.Text;
-using Net.Agora.Signaling.iOS;
 using Net.Agora.Video.iOS;
 
 namespace Net.Agora.Sample.iOS;
@@ -13,10 +12,6 @@ namespace Net.Agora.Sample.iOS;
 /// callbacks are consumed as the binding's generated C# events (<c>engine.DidJoinedOfUid += …</c>)
 /// rather than through a hand-written <c>AgoraRtcEngineDelegate</c> subclass — see the comment at
 /// the subscription site for the one rule that choice comes with.
-///
-/// The Signaling button drives <see cref="AgoraRtmClientKit"/> from the same app: the two
-/// products coexist (different frameworks, different classes), which this sample proves at
-/// bundle time just by building.
 /// </summary>
 public partial class MainPage : ContentPage
 {
@@ -97,8 +92,28 @@ public partial class MainPage : ContentPage
         engine.SetupLocalVideo(new AgoraRtcVideoCanvas { Uid = 0, View = localView });
         engine.EnableVideo();
 
+        // Without this, EnableVideo alone never turns the camera on: JoinChannel does not imply
+        // it, unlike what Agora's own docs suggest for the plain (no ChannelMediaOptions) join
+        // overload used below. Missing this call is silent — the channel join itself still
+        // succeeds, DidJoinChannel still fires — but no frames are ever captured, so both the
+        // local view and whatever the remote side receives stay blank. See
+        // Net.Agora.Sample.Android's OnStartPreviewClicked, which calls this unconditionally
+        // before ever touching JoinChannel — this is the one call that sample has and this one
+        // does not.
+        engine.StartPreview();
+
+        // This plain JoinChannel overload (no AgoraRtcChannelMediaOptions) defaults the client
+        // role to Audience, not Broadcaster — confirmed via agoraapi.log's
+        // setUserRoleStatus(role:2, …) on a join neither sample asked for that role on. Audience
+        // neither publishes nor is notified of other Audience members joining, so two
+        // Audience-role apps in the same channel each connect fine but never see or hear each
+        // other — exactly the "each only sees myself" symptom this fixes. See
+        // Net.Agora.Sample.Android's OnStartPreviewClicked for the same fix.
+        engine.SetClientRole(AgoraClientRole.Broadcaster);
+
         var token = string.IsNullOrEmpty(TokenEntry.Text) ? null : TokenEntry.Text!.Trim();
-        engine.JoinChannel(token, channelId, null, 0, joinSuccess: null);
+        var joinResult = engine.JoinChannel(token, channelId, null, 0, joinSuccess: null);
+        Append(joinResult == 0 ? $"joining {channelId}…" : $"JoinChannel returned {joinResult}");
 
         _engine = engine;
         SetJoined(true);
@@ -149,36 +164,6 @@ public partial class MainPage : ContentPage
         Append(code == 0
             ? (_muted ? "microphone muted" : "microphone unmuted")
             : $"muteLocalAudioStream returned {code}");
-    }
-
-    private async void OnSignalingClicked(object? sender, EventArgs e)
-    {
-        var appId = AppIdEntry.Text?.Trim();
-        if (string.IsNullOrEmpty(appId))
-        {
-            Append("enter an App ID first");
-            return;
-        }
-
-        // The raw RTM surface, from the same process the RTC engine runs in. Login is a live
-        // signalling call, awaited through the binding's own LoginAsync; with an unregistered
-        // App ID it answers an error, which is exactly what this demo shows — the round trip,
-        // credentials or not. The Task completes rather than faults, so the error is read off
-        // the result — see the Signaling sample for the whole awaitable surface.
-        var config = new AgoraRtmClientConfig(appId, "net-agora-sample");
-        var rtm = new AgoraRtmClientKit(config, del: null, out var error);
-        if (rtm.Handle == ObjCRuntime.NativeHandle.Zero)
-        {
-            Append($"RTM rejected the configuration: {error?.LocalizedDescription}");
-            return;
-        }
-
-        Append("RTM created — logging in…");
-        var login = await rtm.LoginAsync(appId);
-        Append(login.ErrorInfo is null or { ErrorCode: 0 }
-            ? "RTM login succeeded"
-            : $"RTM login answered: {login.ErrorInfo.Reason}");
-        rtm.Destroy();
     }
 
     private void Append(string message) => MainThread.BeginInvokeOnMainThread(() =>

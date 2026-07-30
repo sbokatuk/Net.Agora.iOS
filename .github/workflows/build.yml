@@ -182,7 +182,15 @@ jobs:
       # this change, twice, before the cause was obvious.
       fail-fast: false
       matrix:
-        sample: [Net.Agora.Sample.iOS, Net.Agora.Sample.Voice.iOS, Net.Agora.Sample.Signaling.iOS]
+        sample:
+          [
+            Net.Agora.Sample.iOS,
+            Net.Agora.Sample.Voice.iOS,
+            Net.Agora.Sample.Signaling.iOS,
+            Net.Agora.Sample.Chat.iOS,
+            Net.Agora.Sample.Fastboard.iOS,
+            Net.Agora.Sample.Whiteboard.iOS,
+          ]
     steps:
       - uses: actions/checkout@v4
 
@@ -228,7 +236,10 @@ jobs:
             -p:RuntimeIdentifier=iossimulator-arm64 \
             -p:AgoraVideoPackageVersion="${AGORA_VIDEO_PACKAGE_VERSION}${s}" \
             -p:AgoraVoicePackageVersion="${AGORA_VOICE_PACKAGE_VERSION}${s}" \
-            -p:AgoraSignalingPackageVersion="${AGORA_SIGNALING_PACKAGE_VERSION}${s}"
+            -p:AgoraSignalingPackageVersion="${AGORA_SIGNALING_PACKAGE_VERSION}${s}" \
+            -p:AgoraChatPackageVersion="${AGORA_CHAT_PACKAGE_VERSION}${s}" \
+            -p:AgoraFastboardPackageVersion="${AGORA_FASTBOARD_PACKAGE_VERSION}${s}" \
+            -p:AgoraWhiteboardPackageVersion="${AGORA_WHITEBOARD_PACKAGE_VERSION}${s}"
 
   # What the sample job still cannot reach, because a simulator build is a different build.
   #
@@ -241,11 +252,14 @@ jobs:
   # green through a package whose device slice was empty, mis-stripped or built for the wrong
   # minimum OS version; this job is what notices.
   #
-  # Two samples rather than all three: Video carries the largest native payload here (six
-  # xcframeworks, including the video_dec that AgoraRtcKit's binary links by path), and Signaling
-  # is the one whose device slice build/fetch-signaling.sh strips armv7 out of — so between them
-  # they cover both ways an arm64-only link can go wrong. The Voice sample links the same
-  # AgoraRtcKit machinery as Video by a different route.
+  # Not all six: Voice links the same AgoraRtcKit machinery as Video by a different route, so it
+  # would only repeat Video's coverage here. Every other product carries its own, entirely separate
+  # native payload — Video (six xcframeworks, including the video_dec AgoraRtcKit's binary links by
+  # path), Signaling (whose device slice build/fetch-signaling.sh strips armv7 out of), Chat (its
+  # own xcframework plus the AgoraInfra dependency it does not bundle), Fastboard (this repository's
+  # own Objective-C shim over a Swift static library) and Whiteboard (itself a static library, unlike
+  # every other product here — see the preamble of src/Net.Agora.Whiteboard.iOS/ApiDefinition.cs)
+  # — so one sample per product covers a distinct way an arm64-only link can go wrong.
   device-link:
     name: link for a device (${{ matrix.sample }})
     timeout-minutes: 45
@@ -256,7 +270,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sample: [Net.Agora.Sample.iOS, Net.Agora.Sample.Signaling.iOS]
+        sample:
+          [
+            Net.Agora.Sample.iOS,
+            Net.Agora.Sample.Signaling.iOS,
+            Net.Agora.Sample.Chat.iOS,
+            Net.Agora.Sample.Fastboard.iOS,
+            Net.Agora.Sample.Whiteboard.iOS,
+          ]
     steps:
       - uses: actions/checkout@v4
 
@@ -298,7 +319,10 @@ jobs:
             -p:EnableCodeSigning=false \
             -p:AgoraVideoPackageVersion="${AGORA_VIDEO_PACKAGE_VERSION}${s}" \
             -p:AgoraVoicePackageVersion="${AGORA_VOICE_PACKAGE_VERSION}${s}" \
-            -p:AgoraSignalingPackageVersion="${AGORA_SIGNALING_PACKAGE_VERSION}${s}"
+            -p:AgoraSignalingPackageVersion="${AGORA_SIGNALING_PACKAGE_VERSION}${s}" \
+            -p:AgoraChatPackageVersion="${AGORA_CHAT_PACKAGE_VERSION}${s}" \
+            -p:AgoraFastboardPackageVersion="${AGORA_FASTBOARD_PACKAGE_VERSION}${s}" \
+            -p:AgoraWhiteboardPackageVersion="${AGORA_WHITEBOARD_PACKAGE_VERSION}${s}"
 
           app="samples/${{ matrix.sample }}/bin/Release/${tfm}/ios-arm64/${{ matrix.sample }}.app"
           if [ ! -d "${app}" ]; then
