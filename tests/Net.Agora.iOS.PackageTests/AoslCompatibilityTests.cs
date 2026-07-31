@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO.Compression;
 
 namespace Net.Agora.iOS.PackageTests;
@@ -24,21 +23,24 @@ namespace Net.Agora.iOS.PackageTests;
 /// The invariant is therefore not that the copies are identical — they are deliberately not, since
 /// Chat pins <c>AgoraInfra_iOS</c> 1.3.9 while the RTC pods and Signaling are on 1.3.5, and
 /// forcing lockstep between unrelated products would buy nothing. It is that <em>whichever copy
-/// wins, all of them still load</em>: every aosl symbol any SDK framework here imports must be
+/// wins, all of them still load</em>: every aosl symbol any framework here imports must be
 /// exported by every aosl any package here ships.
 /// </para>
 /// <para>
-/// This reads real Mach-O symbol tables with <c>nm</c> rather than comparing version strings,
-/// because a version string can agree while the exports do not — 1.3.9 both adds three symbols
-/// and drops two relative to 1.3.5. The tests build iOS packages, so they only ever run where the
-/// Apple toolchain is installed.
+/// This reads real Mach-O symbol tables rather than comparing version strings, because a version
+/// string can agree while the exports do not — 1.3.9 both adds three symbols and drops two
+/// relative to 1.3.5. See <see cref="MachO"/> for why the parsing is done in-process rather than
+/// by shelling out to <c>nm</c>.
 /// </para>
 /// </remarks>
 public class AoslCompatibilityTests
 {
     private const string PayloadTargetFramework = "net8.0-ios18.0";
 
-    /// <summary>The device slice: one architecture, so <c>nm</c> needs no <c>-arch</c>.</summary>
+    /// <summary>
+    /// The device slice. One architecture, and the one that ships to users; a framework's imports
+    /// and exports do not differ between its slices.
+    /// </summary>
     private const string DeviceSlice = "ios-arm64";
 
     /// <summary>Every package that ships an aosl, and the SDK framework in it that links one.</summary>
@@ -53,8 +55,6 @@ public class AoslCompatibilityTests
     [Fact]
     public void Every_shipped_aosl_satisfies_every_framework_that_links_one()
     {
-        using var workspace = new TempDirectory();
-
         // What the frameworks ask aosl for, pooled: any one of them may be the one left holding
         // another package's copy, so each copy has to answer for all of them at once.
         var required = new SortedSet<string>(StringComparer.Ordinal);
@@ -62,15 +62,13 @@ public class AoslCompatibilityTests
 
         foreach (var (packageId, framework) in Suppliers)
         {
-            var exports = Exported(Extract(workspace, packageId, "aosl", packageId));
+            var exports = MachO.Exports(Binary(packageId, "aosl"));
             exportsByPackage[packageId] = exports;
 
             // Intersected with an aosl's exports rather than taken whole: a framework's undefined
             // symbols also cover libSystem, libc++ and the Objective-C runtime, and only the ones
             // aosl actually provides are aosl's problem.
-            required.UnionWith(
-                Undefined(Extract(workspace, packageId, framework, $"{packageId}.{framework}"))
-                    .Where(exports.Contains));
+            required.UnionWith(MachO.Undefined(Binary(packageId, framework)).Where(exports.Contains));
         }
 
         // The extension packages ship no aosl of their own — they are native payload only — but
@@ -84,9 +82,7 @@ public class AoslCompatibilityTests
         {
             foreach (var framework in frameworks)
             {
-                required.UnionWith(
-                    Undefined(Extract(workspace, packageId, framework, $"{packageId}.{framework}"))
-                        .Where(reference.Contains));
+                required.UnionWith(MachO.Undefined(Binary(packageId, framework)).Where(reference.Contains));
             }
         }
 
@@ -107,11 +103,8 @@ public class AoslCompatibilityTests
             string.Join("\n", failures));
     }
 
-    /// <summary>
-    /// Writes one framework's device-slice Mach-O out of a package's native payload to disk, since
-    /// <c>nm</c> reads files rather than streams.
-    /// </summary>
-    private static string Extract(TempDirectory workspace, string packageId, string framework, string name)
+    /// <summary>One framework's device-slice Mach-O, out of a package's native payload.</summary>
+    private static byte[] Binary(string packageId, string framework)
     {
         using var package = Packages.OpenPackage(packageId);
         using var payload = Packages.OpenNativePayload(package, packageId, PayloadTargetFramework);
@@ -120,57 +113,9 @@ public class AoslCompatibilityTests
         var entry = payload.GetEntry(path);
         Assert.True(entry is not null, $"{packageId} has no '{path}' in its native payload.");
 
-        var destination = Path.Combine(workspace.Path, name);
-        using (var source = entry!.Open())
-        using (var file = File.Create(destination))
-        {
-            source.CopyTo(file);
-        }
-
-        return destination;
-    }
-
-    private static SortedSet<string> Exported(string binary) =>
-        // -gU: external, defined. The undefined ones are what the consumer side wants.
-        Symbols(binary, "-gU", line => line.Length > 2 && line[1] != "U");
-
-    private static SortedSet<string> Undefined(string binary) =>
-        Symbols(binary, "-u", line => line.Length == 1);
-
-    private static SortedSet<string> Symbols(string binary, string flag, Func<string[], bool> keep)
-    {
-        var nm = Process.Start(new ProcessStartInfo("nm", $"{flag} \"{binary}\"")
-        {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-        });
-        Assert.True(nm is not null, "could not start nm");
-
-        var output = nm!.StandardOutput.ReadToEnd();
-        nm.StandardError.ReadToEnd();
-        nm.WaitForExit();
-
-        var symbols = new SortedSet<string>(StringComparer.Ordinal);
-        foreach (var raw in output.Split('\n'))
-        {
-            var fields = raw.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (fields.Length > 0 && keep(fields))
-            {
-                symbols.Add(fields[^1]);
-            }
-        }
-
-        Assert.True(symbols.Count > 0, $"nm {flag} returned no symbols for '{binary}'.");
-        return symbols;
-    }
-
-    private sealed class TempDirectory : IDisposable
-    {
-        public TempDirectory() => Directory.CreateDirectory(Path);
-
-        public string Path { get; } =
-            System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"agora-aosl-{Guid.NewGuid():N}");
-
-        public void Dispose() => Directory.Delete(Path, recursive: true);
+        using var source = entry!.Open();
+        using var buffer = new MemoryStream();
+        source.CopyTo(buffer);
+        return buffer.ToArray();
     }
 }
