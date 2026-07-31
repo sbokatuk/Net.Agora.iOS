@@ -13,7 +13,7 @@ Four products are bound, from `net8.0-ios` through `net10.0-ios`:
 | --- | --- | --- |
 | `Net.Agora.Video.iOS` | [`AgoraRtcEngine_iOS`](https://cocoapods.org/pods/AgoraRtcEngine_iOS) | The app shows or sends video (also carries the full audio surface). |
 | `Net.Agora.Voice.iOS` | [`AgoraAudio_iOS`](https://cocoapods.org/pods/AgoraAudio_iOS) | Audio only — the same engine built without the video pipeline, one fewer framework and a markedly smaller payload. |
-| `Net.Agora.Signaling.iOS` | [`AgoraRtm_iOS`](https://cocoapods.org/pods/AgoraRtm_iOS) | Realtime messaging (Signaling / RTM 2.x, its own 2.2.x version line) — coexists with either RTC package. |
+| `Net.Agora.Signaling.iOS` | [`AgoraRtm_iOS`](https://cocoapods.org/pods/AgoraRtm_iOS) + [`AgoraInfra_iOS`](https://cocoapods.org/pods/AgoraInfra_iOS) | Realtime messaging (Signaling / RTM 2.x, its own 2.2.x version line) — coexists with either RTC package **from 2.2.6.3**; earlier versions could stop one loading (see the 2.2.6.3 release note). |
 | `Net.Agora.Chat.iOS` | [`Agora_Chat_iOS`](https://cocoapods.org/pods/Agora_Chat_iOS) | Persistent messaging (Chat / IM 1.x, its own version line) — coexists with everything else here. Note the underscores: the `AgoraChat` pod is the abandoned 3.8.x Easemob line, not this SDK. |
 
 Alongside them, twelve `Net.Agora.Extensions.<Name>.iOS` packages carry the RTC SDK's optional

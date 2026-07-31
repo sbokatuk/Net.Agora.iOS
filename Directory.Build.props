@@ -31,7 +31,24 @@
       whose versions do not move together.
     -->
     <AgoraSignalingIosVersion>2.2.6</AgoraSignalingIosVersion>
-    <AgoraSignalingBindingRevision>2</AgoraSignalingBindingRevision>
+    <AgoraSignalingBindingRevision>3</AgoraSignalingBindingRevision>
+    <!--
+      The RTM zip bundles its own aosl.framework, at a version that trails the one the RTC pods
+      bundle — 1.2.13 against 1.3.5, and the older one does not export aosl_ref_magic, which
+      AgoraRtcKit resolves at load. Every package that ships an aosl.framework puts it at the same
+      path in the consuming app's bundle, so exactly one copy survives and every product in that
+      app has to run against it. When the survivor was Signaling's, the RTC engine could not load
+      at all. The bundled copy is therefore discarded and aosl comes from AgoraInfra_iOS — the
+      pod Chat already takes it from — at 1.3.5, which is the aosl the RTC pods bundle byte for
+      byte, so a Video + Signaling app now genuinely carries one library rather than two that
+      merely get along.
+
+      Pinned separately from AgoraChatInfraIosVersion below, which deliberately reads 1.3.9: the
+      two products' infra requirements are unrelated and a Chat bump must not silently move this
+      one. That the mixture is safe is not assumed either — AoslCompatibilityTests checks every
+      shipped aosl against every aosl symbol the three SDK frameworks actually import.
+    -->
+    <AgoraSignalingInfraIosVersion>1.3.5</AgoraSignalingInfraIosVersion>
     <!--
       Chat is a third product on a third native line — 1.4.x. Its pod is Agora_Chat_iOS, not the
       AgoraChat pod on CocoaPods trunk: that one is the abandoned 3.8.x Easemob line and has
