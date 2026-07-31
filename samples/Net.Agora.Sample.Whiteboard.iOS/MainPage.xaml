@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:Net.Agora.Sample.Whiteboard.iOS"
+             x:Class="Net.Agora.Sample.Whiteboard.iOS.MainPage"
+             Title="Net.Agora Whiteboard (raw)">
+
+    <Grid Padding="12" RowSpacing="8" RowDefinitions="Auto,Auto,*,Auto,Auto">
+
+        <Entry x:Name="AppIdentifierEntry" Grid.Row="0" Placeholder="Whiteboard App Identifier (org/app)" />
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Entry x:Name="RoomUuidEntry" Placeholder="Room UUID" />
+            <Entry x:Name="RoomTokenEntry" Grid.Column="1" Placeholder="Room token" />
+        </Grid>
+
+        <!-- The board itself: a hand-rolled toolbar below, unlike Fastboard's built-in one. -->
+        <local:WhiteboardHostView x:Name="Board" Grid.Row="2" />
+
+        <HorizontalStackLayout Grid.Row="3" Spacing="8">
+            <Button x:Name="JoinButton" Text="Join" Clicked="OnJoinClicked" />
+            <Button x:Name="LeaveButton" Text="Leave" Clicked="OnLeaveClicked" IsEnabled="False" />
+            <Button x:Name="PencilButton" Text="Pencil" Clicked="OnPencilClicked" IsEnabled="False" />
+            <Button x:Name="EraserButton" Text="Eraser" Clicked="OnEraserClicked" IsEnabled="False" />
+            <Button x:Name="UndoButton" Text="Undo" Clicked="OnUndoClicked" IsEnabled="False" />
+            <Button x:Name="RedoButton" Text="Redo" Clicked="OnRedoClicked" IsEnabled="False" />
+            <Button x:Name="ClearButton" Text="Clear" Clicked="OnClearClicked" IsEnabled="False" />
+        </HorizontalStackLayout>
+
+        <Label x:Name="StatusLabel" Grid.Row="4" FontFamily="OpenSansRegular" FontSize="12" LineBreakMode="TailTruncation" />
+
+    </Grid>
+
+</ContentPage>

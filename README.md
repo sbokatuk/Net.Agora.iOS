@@ -13,7 +13,7 @@ Four products are bound, from `net8.0-ios` through `net10.0-ios`:
 | --- | --- | --- |
 | `Net.Agora.Video.iOS` | [`AgoraRtcEngine_iOS`](https://cocoapods.org/pods/AgoraRtcEngine_iOS) | The app shows or sends video (also carries the full audio surface). |
 | `Net.Agora.Voice.iOS` | [`AgoraAudio_iOS`](https://cocoapods.org/pods/AgoraAudio_iOS) | Audio only — the same engine built without the video pipeline, one fewer framework and a markedly smaller payload. |
-| `Net.Agora.Signaling.iOS` | [`AgoraRtm_iOS`](https://cocoapods.org/pods/AgoraRtm_iOS) | Realtime messaging (Signaling / RTM 2.x, its own 2.2.x version line) — coexists with either RTC package. |
+| `Net.Agora.Signaling.iOS` | [`AgoraRtm_iOS`](https://cocoapods.org/pods/AgoraRtm_iOS) + [`AgoraInfra_iOS`](https://cocoapods.org/pods/AgoraInfra_iOS) | Realtime messaging (Signaling / RTM 2.x, its own 2.2.x version line) — coexists with either RTC package **from 2.2.6.3**; earlier versions could stop one loading (see the 2.2.6.3 release note). |
 | `Net.Agora.Chat.iOS` | [`Agora_Chat_iOS`](https://cocoapods.org/pods/Agora_Chat_iOS) | Persistent messaging (Chat / IM 1.x, its own version line) — coexists with everything else here. Note the underscores: the `AgoraChat` pod is the abandoned 3.8.x Easemob line, not this SDK. |
 
 Alongside them, twelve `Net.Agora.Extensions.<Name>.iOS` packages carry the RTC SDK's optional
@@ -157,8 +157,7 @@ video directly against `AgoraRtcEngineKit`: an App ID/channel/token entry, Join/
 buttons, and a local + remote video view backed by a hand-rolled MAUI handler
 (`AgoraVideoView.cs`) — which is exactly what a consumer skipping the cross-platform façade has
 to wire up, and the part the [façade repo][facade]'s `Net.Agora.Video.Maui` package otherwise
-does for you. Its **Try Signaling** button drives `AgoraRtmClientKit` from the same app — the
-coexistence of the two products, proven at bundle time just by building.
+does for you.
 
 `samples/Net.Agora.Sample.Voice.iOS` is the audio-only sibling against `Net.Agora.Voice.iOS`:
 join, mute, speakerphone routing and the who-is-speaking volume reports, with no camera
@@ -168,8 +167,22 @@ permission anywhere.
 (log in, subscribe, publish, receive) over the raw Objective-C completion-block surface, to show
 what the façade hides.
 
-Both are the same flows as the façade repo's cross-platform MAUI samples, built straight against
-these packages with no façade in between — proof they are consumable end to end.
+`samples/Net.Agora.Sample.Chat.iOS` drives `AgoraChatClient` on its own — the same tiny two-user
+chat shape as Signaling's sample, over `AgoraChatManagerDelegate`/`AgoraChatClientDelegate` for
+incoming messages and connection state, since `AgoraChatError` is not an `NSError` and so cannot
+fault a Task the way Signaling's errors do.
+
+`samples/Net.Agora.Sample.Fastboard.iOS` drives `AgoraFastboard` on its own: a UIView it builds
+itself (with its own toolbar already drawn and wired), added to the page through a small MAUI
+handler — join, read-only toggle, and driving the board from code (a red pencil) alongside that
+toolbar.
+
+`samples/Net.Agora.Sample.Whiteboard.iOS` drives `WhiteSDK`/`WhiteRoom` on its own: the app owns
+the `WhiteBoardView` and joins through it directly, with a hand-rolled toolbar (pencil, eraser,
+undo/redo, clear) since — unlike Fastboard — the plain SDK draws nothing of its own.
+
+All six are the same flows as the façade repo's cross-platform MAUI samples, built straight
+against these packages with no façade in between — proof they are consumable end to end.
 
 It consumes the packed `Net.Agora.Video.iOS` package from `./artifacts` (see `NuGet.config`), so
 fetch and pack first:

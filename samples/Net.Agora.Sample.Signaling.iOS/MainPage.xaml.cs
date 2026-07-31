@@ -61,8 +61,11 @@ public partial class MainPage : ContentPage
 
         _channel = channel;
 
-        // An App ID-only project logs in with the App ID as the token.
-        var login = await _client.LoginAsync(appId);
+        // Falls back to the App ID as the token when the field is left blank — an
+        // App-Certificate-less (testing) project accepts that; a real project rejects it with
+        // "Invalid token", which is exactly what a real RTM token (TokenEntry) is for.
+        var token = TokenEntry.Text?.Trim();
+        var login = await _client.LoginAsync(string.IsNullOrEmpty(token) ? appId : token);
         if (login.ErrorInfo is { ErrorCode: not 0 })
         {
             Append($"login failed: {login.ErrorInfo.Reason}");

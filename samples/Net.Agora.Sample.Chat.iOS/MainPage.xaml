@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Net.Agora.Sample.Chat.iOS.MainPage"
+             Title="Net.Agora Chat (raw)">
+
+    <Grid Padding="16" RowSpacing="8" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto">
+
+        <Label Grid.Row="0" FontAttributes="Bold"
+               Text="Agora Chat (IM) — raw AgoraChatClient binding, no façade" />
+
+        <Entry x:Name="AppKeyEntry" Grid.Row="1" Placeholder="App Key (org#appName, from the Agora Console)" />
+        <Entry x:Name="UsernameEntry" Grid.Row="2" Placeholder="Your username" Text="ios-user" />
+        <Grid Grid.Row="3" ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Entry x:Name="TokenEntry" Placeholder="User token (minted by your server)" />
+            <Entry x:Name="PeerEntry" Grid.Column="1" Placeholder="Peer username" Text="android-user" />
+        </Grid>
+
+        <HorizontalStackLayout Grid.Row="4" Spacing="8">
+            <Button x:Name="LoginButton" Text="Log in" Clicked="OnLoginClicked" />
+            <Button x:Name="LogoutButton" Text="Log out" Clicked="OnLogoutClicked" IsEnabled="False" />
+        </HorizontalStackLayout>
+
+        <ScrollView x:Name="MessagesScroll" Grid.Row="5">
+            <Label x:Name="MessagesLabel" FontFamily="OpenSansRegular" FontSize="12" />
+        </ScrollView>
+
+        <Grid Grid.Row="6" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <Entry x:Name="MessageEntry" Placeholder="Say something" IsEnabled="False" />
+            <Button x:Name="SendButton" Grid.Column="1" Text="Send" Clicked="OnSendClicked" IsEnabled="False" />
+        </Grid>
+
+    </Grid>
+
+</ContentPage>

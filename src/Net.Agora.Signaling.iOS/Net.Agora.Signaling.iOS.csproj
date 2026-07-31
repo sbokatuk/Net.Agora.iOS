@@ -30,12 +30,25 @@
     Apple SDK in whichever app references this package.
 
     AgoraRtmKit links exactly one @rpath dependency, aosl (confirmed with `otool -L`). Fetched by
-    build/fetch-signaling.sh from Agora's own SDK download, so they are not in git — including the
+    build/fetch-signaling.sh from Agora's own SDK downloads, so they are not in git — including the
     visionOS slice stripping that script performs.
 
     This package coexists with either RTC package in one app — different framework names,
-    different classes. (Both ship an aosl.xcframework, but it is the same infra library and the
-    app bundle carries a single copy.)
+    different classes — but only because aosl is handled deliberately. Both products ship an
+    aosl.xcframework, and both land at Frameworks/aosl.framework in the consuming app: the bundle
+    carries a single copy, and which one it is, is whichever the build happened to keep. Up to
+    2.2.6.2 they were not the same library. AgoraRtm_iOS bundles aosl 1.2.13, the RTC pods bundle
+    1.3.5, and 1.2.13 does not export aosl_ref_magic — so an app that referenced both could end
+    up unable to load AgoraRtcKit at all, with nothing about the build to say so.
+
+    So the bundled copy is discarded and aosl comes from AgoraInfra_iOS (AgoraSignalingInfraIosVersion
+    in Directory.Build.props), which at 1.3.5 carries the RTC pods' aosl byte for byte — the same
+    pod Chat already takes aosl from, for the different reason that Chat bundles none at all.
+    Verified in two places that fail rather than warn: the fetch script checks the staged framework
+    exports aosl_ref_magic, and tests/Net.Agora.iOS.PackageTests/AoslCompatibilityTests.cs checks
+    every packed aosl against every aosl symbol the SDK frameworks here import. Both directions
+    were checked before the switch — all 89 aosl symbols AgoraRtmKit imports are exported by 1.3.5
+    too, so nothing regressed for a consumer using Signaling on its own.
   -->
   <ItemGroup>
     <NativeReference Include="lib/AgoraRtmKit.xcframework">

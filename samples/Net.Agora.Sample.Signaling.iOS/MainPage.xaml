@@ -4,7 +4,7 @@
              x:Class="Net.Agora.Sample.Signaling.iOS.MainPage"
              Title="Net.Agora Signaling (raw)">
 
-    <Grid Padding="16" RowSpacing="8" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto">
+    <Grid Padding="16" RowSpacing="8" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto">
 
         <Label Grid.Row="0" FontAttributes="Bold"
                Text="Agora Signaling (RTM) — raw AgoraRtmClientKit binding, no façade" />
@@ -12,17 +12,20 @@
         <Entry x:Name="AppIdEntry" Grid.Row="1" Placeholder="App ID (from the Agora Console)" />
         <Entry x:Name="UserIdEntry" Grid.Row="2" Placeholder="Your user id" Text="ios-user" />
         <Entry x:Name="ChannelEntry" Grid.Row="3" Placeholder="Channel" Text="net-agora-signaling-sample" />
+        <!-- Optional: blank logs in with the App ID as the token, which only an App
+             Certificate-less (testing) project accepts. -->
+        <Entry x:Name="TokenEntry" Grid.Row="4" Placeholder="RTM token (optional — required if App Certificate is on)" />
 
-        <HorizontalStackLayout Grid.Row="4" Spacing="8">
+        <HorizontalStackLayout Grid.Row="5" Spacing="8">
             <Button x:Name="LoginButton" Text="Log in" Clicked="OnLoginClicked" />
             <Button x:Name="LogoutButton" Text="Log out" Clicked="OnLogoutClicked" IsEnabled="False" />
         </HorizontalStackLayout>
 
-        <ScrollView x:Name="MessagesScroll" Grid.Row="5">
+        <ScrollView x:Name="MessagesScroll" Grid.Row="6">
             <Label x:Name="MessagesLabel" FontFamily="OpenSansRegular" FontSize="12" />
         </ScrollView>
 
-        <Grid Grid.Row="6" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <Grid Grid.Row="7" ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <Entry x:Name="MessageEntry" Placeholder="Say something" IsEnabled="False" />
             <Button x:Name="SendButton" Grid.Column="1" Text="Send" Clicked="OnSendClicked" IsEnabled="False" />
         </Grid>

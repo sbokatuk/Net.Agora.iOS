@@ -27,7 +27,6 @@
             <Button x:Name="LeaveButton" Text="Leave" Clicked="OnLeaveClicked" IsEnabled="False" />
             <Button x:Name="FlipButton" Text="Flip" Clicked="OnFlipClicked" IsEnabled="False" />
             <Button x:Name="MuteButton" Text="Mute" Clicked="OnMuteClicked" IsEnabled="False" />
-            <Button x:Name="SignalingButton" Text="Try Signaling" Clicked="OnSignalingClicked" />
         </HorizontalStackLayout>
 
         <ScrollView Grid.Row="3" x:Name="StatusScroll" HeightRequest="120">
