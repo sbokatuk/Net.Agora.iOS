@@ -11,7 +11,7 @@ set -euo pipefail
 #
 # Usage:
 #   ./build/build-whiteboard.sh              # the version pinned in Directory.Build.props
-#   ./build/build-whiteboard.sh 2.16.137     # an explicit version
+#   ./build/build-whiteboard.sh 2.16.139     # an explicit version
 #
 # Requires Xcode. No CocoaPods and no Ruby: the repository carries a Package.swift, so xcodebuild
 # resolves NTLBridge and White_YYModel itself.

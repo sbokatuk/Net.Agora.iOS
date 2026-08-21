@@ -224,6 +224,12 @@ sibling_links() { # sibling_links <owner/repo> <version>
 
 # CocoaPods' CDN shards a pod's spec directory by the first three hex digits of the *pod name's*
 # MD5 (not the version's), so every version of a pod lives under the same shard.
+# The git tag a source pod's podspec names, empty for a binary pod (source.http) or on any failure.
+podspec_git_tag() { # <PodName> <version>
+    fetch "$(podspec_url "$1" "$2")" \
+      | jq_lines 'import sys,json;s=json.load(sys.stdin).get("source",{});print(s.get("tag","") if s.get("git") else "")'
+}
+
 podspec_url() { # <PodName> <version>
     local md5
     if command -v md5 >/dev/null 2>&1; then md5="$(printf '%s' "$1" | md5 -q)"
@@ -402,7 +408,14 @@ while IFS=$'\t' read -r group label kind pin locator confirm src; do
                 note "${group}" "**${label}**: \`${latest}\` is tagged upstream (pinned \`${current}\`) — built from source, so there is no archive to verify."
                 ;;
             *)
-                note "${group}" "**${label}**: \`${latest}\` is published (pinned \`${current}\`), but no download URL could be resolved for it — check by hand before re-pinning."
+                # A CocoaPods *source* pod (netless's Whiteboard) has source.git and no http
+                # archive either; the tag it names is the confirmation, as above. Anything else
+                # with no URL is genuinely unexplained and earns a hand check.
+                if [ "${kind}" = cocoapods ] && [ -n "$(podspec_git_tag "${locator}" "${latest}")" ]; then
+                    note "${group}" "**${label}**: \`${latest}\` is published (pinned \`${current}\`) — a source pod built from its git tag, so there is no archive to verify."
+                else
+                    note "${group}" "**${label}**: \`${latest}\` is published (pinned \`${current}\`), but no download URL could be resolved for it — check by hand before re-pinning."
+                fi
                 ;;
         esac
     elif downloadable "${url}"; then

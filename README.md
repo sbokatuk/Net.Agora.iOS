@@ -123,7 +123,7 @@ paths with bounded timeouts):
 ```sh
 ./.github/scripts/run-simulator-tests.sh 4.6.2.1 net10.0-ios26.0
 ./.github/scripts/run-simulator-tests.sh 4.6.2.1 net10.0-ios26.0 Voice
-./.github/scripts/run-simulator-tests.sh 2.16.137.2 net9.0-ios18.0 Whiteboard
+./.github/scripts/run-simulator-tests.sh 2.16.139.1 net9.0-ios18.0 Whiteboard
 ```
 
 One product per run, and not by preference: the RTC pair both ship a framework named
