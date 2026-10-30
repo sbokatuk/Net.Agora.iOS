@@ -20,8 +20,10 @@ Alongside them, twelve `Net.Agora.Extensions.<Name>.iOS` packages carry the RTC 
 features — AI noise suppression, virtual background, spatial audio, the video enhancement filters,
 the software encoders and the rest — mirroring `AgoraRtcEngine_iOS`'s own CocoaPods subspecs. They
 are native payload only: the switch that turns each one on already exists on `AgoraRtcEngineKit`,
-and what these packages add is the framework the engine loads when it is flipped. Add one alongside
-either RTC package — they depend on neither, so they do not force a flavour. See
+and what these packages add is the framework the engine loads when it is flipped. They depend on
+neither RTC package, so they do not force a flavour, but only the four audio ones (`Ains`, `Aiaec`,
+`AudioBeauty`, `SpatialAudio`) work with both. The other eight need `Net.Agora.Video.iOS`: from 4.7.0
+they link a framework `Net.Agora.Voice.iOS` doesn't ship, so an app with one stops at launch. See
 [src/Agora.Extension.md](src/Agora.Extension.md) for the full list and for what is deliberately
 absent.
 
@@ -108,7 +110,7 @@ see `build/merge-packages.py`.
 **Package tests** run anywhere and inspect both packed `.nupkg`s — a binding assembly and a native
 payload for every target framework, every expected xcframework present (six for Video, five for
 Voice — the voice build of AgoraRtcKit links no video codec, which is the point), every audio
-extension loadable with either RTC package, the payload
+extension loadable with the RTC packages it supports, the payload
 logically identical across target frameworks (which is what would catch a mismatched net10 merge
 graft), iOS device and simulator slices only, and manifests consistent with the slices actually
 shipped:

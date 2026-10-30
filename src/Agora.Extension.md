@@ -37,9 +37,10 @@ They are still *binding* projects, because that is what packs a `NativeReference
 the Video package ships, so one of them in a Voice app stops the app at launch.
 
 They deliberately depend on **neither** RTC package. The Video and Voice bindings are mutually
-exclusive in one app, so depending on either would force a flavour on the consumer; and the audio
-extensions work with both. The README tells consumers to add one alongside whichever RTC package
-they already have.
+exclusive in one app, so depending on either would force a flavour on the consumer, and the four
+audio extensions work with both. The other eight need the Video package: they link `Agoraffmpeg`,
+and nothing about a package stops one being added to a Voice app, so the README says so and each
+package's description does too.
 
 ## What is not here
 

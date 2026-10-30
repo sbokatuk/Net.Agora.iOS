@@ -40,7 +40,7 @@
 
   <PropertyGroup>
     <Title>The Agora AV1 video encoder extension for .NET for iOS.</Title>
-    <Description>The native payload for Agora's AV1 video encoder extension, staged out of the AgoraRtcEngine_iOS $(AgoraVideoIosVersion) archive and packaged for .NET for iOS. AV1 encoding, for the bandwidth saving over H.264 where both ends support it. Add it alongside Net.Agora.Video.iOS or Net.Agora.Voice.iOS — it carries no managed API of its own; the switch that turns it on is AgoraVideoEncoderConfiguration with an AV1 codec type in the RTC binding.</Description>
+    <Description>The native payload for Agora's AV1 video encoder extension, staged out of the AgoraRtcEngine_iOS $(AgoraVideoIosVersion) archive and packaged for .NET for iOS. AV1 encoding, for the bandwidth saving over H.264 where both ends support it. Add it alongside Net.Agora.Video.iOS, not Net.Agora.Voice.iOS, which lacks a framework this one links — it carries no managed API of its own; the switch that turns it on is AgoraVideoEncoderConfiguration with an AV1 codec type in the RTC binding.</Description>
     <PackageTags>$(PackageTags);RTC;extension;AV1;video;encoder</PackageTags>
   </PropertyGroup>
 

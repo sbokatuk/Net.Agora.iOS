@@ -53,8 +53,8 @@ public class ExtensionPackageTests
     }
 
     [Theory]
-    [MemberData(nameof(AudioExtensions))]
-    public void Audio_extension_loads_with_either_RTC_package(string packageId, string rtcPackageId)
+    [MemberData(nameof(SupportedPairs))]
+    public void Extension_loads_with_each_RTC_package_it_supports(string packageId, string rtcPackageId)
     {
         // Each of these frameworks is linked into the app, so dyld has to resolve everything it
         // links before main() runs: one framework the RTC package doesn't ship kills the app at
@@ -90,10 +90,13 @@ public class ExtensionPackageTests
         }
     }
 
-    /// <summary>Every (audio extension, RTC package) pair.</summary>
-    public static IEnumerable<object[]> AudioExtensions =>
-        Packages.AudioExtensionIds.SelectMany(id =>
-            new[] { Packages.Video, Packages.Voice }.Select(rtc => new object[] { id, rtc }));
+    /// <summary>Every (extension, RTC package it is documented to work with) pair.</summary>
+    public static IEnumerable<object[]> SupportedPairs =>
+        Packages.Extensions.SelectMany(extension =>
+            (Packages.AudioExtensionIds.Contains(extension.Id)
+                ? new[] { Packages.Video, Packages.Voice }
+                : new[] { Packages.Video })
+            .Select(rtc => new object[] { extension.Id, rtc }));
 
     [Theory]
     [MemberData(nameof(Packages.ExtensionIds), MemberType = typeof(Packages))]
@@ -113,7 +116,8 @@ public class ExtensionPackageTests
             .ToList();
 
         // The Video and Voice bindings are mutually exclusive in one app, so a dependency on
-        // either would force a flavour on the consumer — and the audio extensions work with both.
+        // either would force a flavour on the consumer — and the four audio extensions work with
+        // both.
         Assert.DoesNotContain("Net.Agora.Video.iOS", dependencies);
         Assert.DoesNotContain("Net.Agora.Voice.iOS", dependencies);
     }
