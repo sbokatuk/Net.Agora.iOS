@@ -180,7 +180,8 @@ fault a Task the way Signaling's errors do.
 `samples/Net.Agora.Sample.Fastboard.iOS` drives `AgoraFastboard` on its own: a UIView it builds
 itself (with its own toolbar already drawn and wired), added to the page through a small MAUI
 handler — join, read-only toggle, and driving the board from code (a red pencil) alongside that
-toolbar.
+toolbar. Like the Whiteboard sample below, it has a region field, because a room can only be joined
+from the region it was created in. Left empty, Fastboard uses China.
 
 `samples/Net.Agora.Sample.Whiteboard.iOS` drives `WhiteSDK`/`WhiteRoom` on its own: the app owns
 the `WhiteBoardView` and joins through it directly, with a hand-rolled toolbar (pencil, eraser,
