@@ -36,14 +36,11 @@
     <NativeReference Include="lib/AgoraVideoEncoderExtension.xcframework">
       <Kind>Framework</Kind>
     </NativeReference>
-    <NativeReference Include="lib/video_enc.xcframework">
-      <Kind>Framework</Kind>
-    </NativeReference>
   </ItemGroup>
 
   <PropertyGroup>
     <Title>The Agora software video encoder extension for .NET for iOS.</Title>
-    <Description>The native payload for Agora's software video encoder extension, staged out of the AgoraRtcEngine_iOS $(AgoraVideoIosVersion) archive and packaged for .NET for iOS. The software H.264/H.265 encoder, used when the device's hardware encoder is unavailable or unusable for the requested profile. Two frameworks: the extension and the codec it wraps. Add it alongside Net.Agora.Video.iOS or Net.Agora.Voice.iOS — it carries no managed API of its own; the switch that turns it on is selected by the engine itself once present in the RTC binding.</Description>
+    <Description>The native payload for Agora's software video encoder extension, staged out of the AgoraRtcEngine_iOS $(AgoraVideoIosVersion) archive and packaged for .NET for iOS. The software H.264/H.265 encoder, used when the device's hardware encoder is unavailable or unusable for the requested profile. Add it alongside Net.Agora.Video.iOS or Net.Agora.Voice.iOS — it carries no managed API of its own; the switch that turns it on is selected by the engine itself once present in the RTC binding.</Description>
     <PackageTags>$(PackageTags);RTC;extension;software;video;encoder</PackageTags>
   </PropertyGroup>
 

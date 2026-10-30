@@ -53,6 +53,49 @@ public class ExtensionPackageTests
     }
 
     [Theory]
+    [MemberData(nameof(AudioExtensions))]
+    public void Audio_extension_loads_with_either_RTC_package(string packageId, string rtcPackageId)
+    {
+        // Each of these frameworks is linked into the app, so dyld has to resolve everything it
+        // links before main() runs: one framework the RTC package doesn't ship kills the app at
+        // launch, and no build step notices. From 4.7.0 this is a real hazard, because the builds
+        // in AgoraRtcEngine_iOS link Agoraffmpeg and the voice build no longer carries it.
+        var available = Packages.XcFrameworksOf(rtcPackageId)
+            .Concat(Packages.ExtensionXcFrameworksOf(packageId))
+            .ToHashSet(StringComparer.Ordinal);
+
+        using var package = Packages.OpenPackage(packageId);
+        using var payload = Packages.OpenNativePayload(package, packageId, Packages.TargetFrameworks[0]);
+
+        foreach (var framework in Packages.ExtensionXcFrameworksOf(packageId))
+        {
+            var path = $"{framework}.xcframework/ios-arm64/{framework}.framework/{framework}";
+            var entry = payload.GetEntry(path);
+            Assert.True(entry is not null, $"{packageId} has no '{path}' in its native payload.");
+
+            using var source = entry!.Open();
+            using var buffer = new MemoryStream();
+            source.CopyTo(buffer);
+
+            var missing = MachO.RequiredLibraries(buffer.ToArray())
+                .Where(library => library.StartsWith("@rpath/", StringComparison.Ordinal))
+                .Select(library => library.Split('/')[1].Replace(".framework", "", StringComparison.Ordinal))
+                .Where(name => !available.Contains(name))
+                .ToList();
+
+            Assert.True(
+                missing.Count == 0,
+                $"{framework} links {string.Join(", ", missing)}, which {rtcPackageId} does not " +
+                "ship, so an app with both stops at launch. See build/fetch-extensions.sh.");
+        }
+    }
+
+    /// <summary>Every (audio extension, RTC package) pair.</summary>
+    public static IEnumerable<object[]> AudioExtensions =>
+        Packages.AudioExtensionIds.SelectMany(id =>
+            new[] { Packages.Video, Packages.Voice }.Select(rtc => new object[] { id, rtc }));
+
+    [Theory]
     [MemberData(nameof(Packages.ExtensionIds), MemberType = typeof(Packages))]
     public void Extension_depends_on_neither_RTC_binding(string packageId)
     {

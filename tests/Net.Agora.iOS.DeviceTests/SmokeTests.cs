@@ -328,7 +328,7 @@ public static class SmokeTests
 #elif AGORA_SIGNALING
         "AgoraRtmKit", "aosl",
 #elif AGORA_VOICE
-        "AgoraRtcKit", "aosl", "Agorafdkaac", "Agoraffmpeg", "AgoraSoundTouch",
+        "AgoraRtcKit", "aosl", "Agorafdkaac", "AgoraffmpegExtension", "AgoraSoundTouch",
 #else
         "AgoraRtcKit", "aosl", "Agorafdkaac", "Agoraffmpeg", "AgoraSoundTouch", "video_dec",
 #endif
