@@ -117,8 +117,19 @@ public final class AgoraFastboard: NSObject {
         room.delegate = proxy
     }
 
+    /// Fastboard reports most join failures to its delegate, but refusing a join because another
+    /// room operation is under way, and cancelling one that a disconnect overtook, only reach this
+    /// completion. Forwarding exactly those two means the delegate hears each failure once, and a
+    /// caller waiting on it isn't left to time out.
     @objc public func join() {
-        onMainThread { self.room.joinRoom() }
+        onMainThread {
+            self.room.joinRoom { [weak self] result in
+                guard case .failure(let error) = result,
+                      error.code == FastRoomErrorType.busy.rawValue
+                        || error.code == FastRoomErrorType.operationCancelled.rawValue else { return }
+                self?.delegate?.fastboardDidFail(error.localizedDescription)
+            }
+        }
     }
 
     @objc public func disconnect() {

@@ -162,6 +162,17 @@ for bundle in Whiteboard_Whiteboard Fastboard_Fastboard; do
     cp -R "$found" "$DEST/$bundle.bundle"
 done
 
+# Fastboard's error messages look for a bundle named LocalizedStrings, which is what its CocoaPods
+# spec produces. SwiftPM doesn't: it flattens the .lproj folders into Fastboard_Fastboard.bundle, so
+# the lookup falls back to the app's main bundle and a consumer reads the bare key "joinRoomError".
+# Inside the module bundle is the second place it looks, and there the bundle travels with the
+# package's own instead of landing in the root of someone's app under such a general name.
+localized="$DEST/Fastboard_Fastboard.bundle/LocalizedStrings.bundle"
+mkdir -p "$localized"
+cp -R "$DEST/Fastboard_Fastboard.bundle/"*.lproj "$localized/"
+cp "$DEST/Fastboard_Fastboard.bundle/Info.plist" "$localized/Info.plist"
+plutil -replace CFBundleIdentifier -string fastboard-ios.Fastboard.LocalizedStrings "$localized/Info.plist"
+
 # The header is kept beside the xcframework too, so a reader can diff ApiDefinition.cs against what
 # the shim actually exposes without unpacking the package.
 cp "$header" "$DEST/"
