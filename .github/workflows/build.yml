@@ -91,7 +91,7 @@ jobs:
           # fetch script rather than a stale workflow. That is exactly how the extensions failed
           # the first time they ran here.
           path: src/*/lib
-          key: agora-ios-xcframeworks-${{ hashFiles('Directory.Build.props', 'build/checksums.txt') }}
+          key: agora-ios-xcframeworks-${{ hashFiles('Directory.Build.props', 'build/checksums.txt', 'native/**') }}
 
       - name: Fetch and build the Agora iOS SDKs
         if: steps.xcframeworks.outputs.cache-hit != 'true'
@@ -105,7 +105,8 @@ jobs:
           # source pods — so these clone a pinned commit and xcodebuild an xcframework from it.
           # They are slow (an archive per platform, then -create-xcframework), which is what the
           # cache above exists for: on a hit this whole step is skipped, and the cache key covers
-          # their pins (Directory.Build.props + the git: commit lines in build/checksums.txt).
+          # their pins (Directory.Build.props, the git: commit lines in build/checksums.txt and the
+          # lockfiles in native/) as well as the shim's sources, which also live under native/.
           ./build/build-whiteboard.sh
           ./build/build-fastboard.sh
 

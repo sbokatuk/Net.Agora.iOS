@@ -94,6 +94,11 @@ dotnet test tests/Net.Agora.iOS.PackageTests
 The fetch scripts refuse to proceed if the downloaded archive's hash doesn't match
 `build/checksums.txt` — see that file for how to record a new version's hash.
 
+Whiteboard and Fastboard have no archive to fetch: `build/build-whiteboard.sh` and
+`build/build-fastboard.sh` compile them at the commits recorded in the same file, and
+`native/*/Package.resolved` fixes what they pull in through SwiftPM. Those lockfiles are enforced,
+so after moving either pin, re-lock with `./build/build-<product>.sh --relock` and commit the result.
+
 No single .NET SDK builds net8, net9 *and* net10 for iOS, so `BuildNugets.sh` packs twice (the
 installed SDK's band, then a `net10` pass from a scratch `global.json`) and merges the results —
 see `build/merge-packages.py`.

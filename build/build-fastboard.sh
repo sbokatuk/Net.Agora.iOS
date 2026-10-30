@@ -16,11 +16,22 @@ set -euo pipefail
 #
 # And like the Interactive Whiteboard, there is no binary to fetch: netless publishes a CocoaPods
 # source pod, so this builds one. The shim is an ordinary Swift package that depends on
-# fastboard-iOS at a pinned revision; xcodebuild resolves the rest, including Whiteboard-iOS.
+# fastboard-iOS at a pinned revision, and native/AgoraFastboardBridge/Package.resolved fixes
+# everything that revision pulls in.
+#
+# That lockfile is not optional. A revision pins fastboard-iOS and nothing else: its manifest names
+# Whiteboard-iOS and that one names DSBridge-IOS and White_YYModel, some by version range, and
+# SwiftPM ignores a dependency's own Package.resolved. Unlocked, a build takes the newest tags of
+# the day. That is how 1.4.5 stopped compiling with no commit here: its "from: 2.16.125" floated up
+# to a Whiteboard whose addApp handler takes a nullable id. Now a pin that disagrees with the lockfile
+# fails the build instead of resolving around it.
 #
 # Usage:
 #   ./build/build-fastboard.sh            # the version pinned in Directory.Build.props
-#   ./build/build-fastboard.sh 1.4.5      # an explicit version
+#   ./build/build-fastboard.sh 1.4.6      # an explicit version
+#   ./build/build-fastboard.sh --relock   # rewrite the lockfile for the pin, and build nothing
+#
+# After moving the pin, run --relock and commit the lockfile with it; read what moved first.
 #
 # Requires Xcode. No CocoaPods and no Ruby.
 
@@ -30,7 +41,14 @@ ROOT="$(cd .. && pwd)"
 CHECKSUMS="$ROOT/build/checksums.txt"
 DEST="$ROOT/src/Net.Agora.Fastboard.iOS/lib"
 BRIDGE="$ROOT/native/AgoraFastboardBridge"
+LOCKFILE="$BRIDGE/Package.resolved"
 REPO="netless-io/fastboard-iOS"
+
+RELOCK=""
+if [ "${1:-}" = "--relock" ]; then
+    RELOCK=1
+    shift
+fi
 
 VERSION="${1:-}"
 if [ -z "${VERSION}" ]; then
@@ -65,6 +83,15 @@ mkdir -p "$WORK/bridge"
 cp -R "$BRIDGE/Sources" "$WORK/bridge/Sources"
 sed "s|@FASTBOARD_REVISION@|$revision|" "$BRIDGE/Package.swift.in" > "$WORK/bridge/Package.swift"
 
+if [ -n "$RELOCK" ]; then
+    ( cd "$WORK/bridge" && swift package resolve )
+    cp "$WORK/bridge/Package.resolved" "$LOCKFILE"
+    echo "Re-locked $LOCKFILE"
+    exit 0
+fi
+
+cp "$LOCKFILE" "$WORK/bridge/Package.resolved"
+
 # No BUILD_LIBRARY_FOR_DISTRIBUTION here, unlike build-whiteboard.sh. It makes the compiler emit a
 # textual .swiftinterface and then verify it, and Fastboard's own does not verify: the module named
 # Fastboard also contains a class named Fastboard, so every qualified name in its interface
@@ -82,12 +109,13 @@ for platform in iOS "iOS Simulator"; do
         -destination "generic/platform=$platform" \
         -archivePath "$WORK/$slug" \
         -derivedDataPath "$WORK/dd" \
+        -onlyUsePackageVersionsFromResolvedFile \
         SKIP_INSTALL=NO ) \
         > "$WORK/$slug.log" 2>&1 || {
             echo "error: xcodebuild failed for $platform — compiler diagnostics below" >&2
             # The compiler's own lines, not xcodebuild's closing summary: a failed Swift build ends
             # with a page-long re-listing of every module on the command line, which buries them.
-            grep -E "error:|warning: .*deprecated" "$WORK/$slug.log" | sort -u | head -30 >&2 || tail -20 "$WORK/$slug.log" >&2
+            grep -E -A2 "error:|warning: .*deprecated" "$WORK/$slug.log" | sort -u | head -30 >&2 || tail -20 "$WORK/$slug.log" >&2
             exit 1
         }
 
