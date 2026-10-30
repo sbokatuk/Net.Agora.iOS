@@ -63,6 +63,9 @@ public static class SmokeTests
     /// <summary>Kept for the app's lifetime so the construction check's object is not collected mid-suite.</summary>
     private static AgoraFastboardConfiguration? _configuration;
 
+    /// <summary>Kept for the app's lifetime for the same reason: its view hierarchy outlives the check.</summary>
+    private static AgoraFastboard? _board;
+
     /// <summary>Every check, in the order they must run. Per flavour — see the csproj.</summary>
     public static SmokeTest[] All =>
     [
@@ -70,6 +73,7 @@ public static class SmokeTests
         new("reports the embedded whiteboard SDK version", ReportsTheSdkVersion),
         new("both resource bundles reached the app bundle and load", ResourceBundlesAreLoadable),
         new("constructs the configuration", ConstructsTheClient),
+        new("constructs a board and drives it off the main thread", DrivesTheBoardOffTheMainThread),
     ];
 #elif AGORA_WHITEBOARD
     /// <summary>Kept for the app's lifetime so the construction check's objects are not collected mid-suite.</summary>
@@ -443,15 +447,9 @@ public static class SmokeTests
 
     private static void ConstructsTheClient()
     {
-        // The configuration, not AgoraFastboard itself. The shim's -initWithConfiguration: calls
-        // Fastboard.createFastRoom, which stands up the FastRoom and its whole view hierarchy —
-        // toolbar, panels and a board view — before anything has been joined; that is a lot of UI
-        // to bring up on a headless run for a check whose subject is the package's payload, and
-        // its assets are the very bundle the previous check has just proved is there. So this
-        // flavour stops at the configuration: a flat property bag that crosses the same bridge and
-        // answers offline. What it does not cover, then, is -initWithConfiguration: and everything
-        // past it — the façade repository's suite drives that path, including the join, with a
-        // bounded timeout against a real endpoint.
+        // A flat property bag that crosses the same bridge as the board and answers offline. The
+        // board itself is the next check; the join is not covered here at all — the façade
+        // repository's suite drives that, with a bounded timeout against a real endpoint.
         _configuration = new AgoraFastboardConfiguration(AppId, RoomUuid, RoomToken, "net-agora-device-tests")
         {
             Region = "us-sv",
@@ -469,6 +467,45 @@ public static class SmokeTests
         Assert(_configuration.Region == "us-sv", "the region did not round-trip.");
 
         Report("configuration constructed");
+    }
+
+    /// <summary>
+    /// Calls two of the shim's methods from a thread-pool thread, where a .NET caller ends up after
+    /// any <c>await</c>.
+    /// </summary>
+    /// <remarks>
+    /// Fastboard's <c>disconnectRoom</c> and <c>updateWritable</c> open with a Swift
+    /// <c>precondition</c> on the main thread, so without the shim's hop this check ends the process
+    /// and the verdict line never prints. Nothing here reaches the network: outside a room the first
+    /// returns at once, and the second answers "not ready" through its completion block, which is
+    /// also what shows the call really ran on the far side of the hop.
+    /// </remarks>
+    private static void DrivesTheBoardOffTheMainThread()
+    {
+        var board = new AgoraFastboard(_configuration!);
+        _board = board;
+
+        var task = Task.Run(() =>
+        {
+            var answer = new TaskCompletionSource<string?>();
+            board.Disconnect();
+            board.SetWritable(true, answer.SetResult);
+            return answer.Task;
+        });
+
+        // The hop lands on the main queue and this suite runs on the main thread (see Program.cs),
+        // so a blocking Wait would deadlock, exactly as in the Chat flavour's awaitable check.
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        while (!task.IsCompleted && DateTime.UtcNow < deadline)
+        {
+            Foundation.NSRunLoop.Current.RunUntil(Foundation.NSDate.FromTimeIntervalSinceNow(0.05));
+        }
+
+        Assert(task.IsCompleted, "SetWritable's completion did not arrive within 10 seconds.");
+        Assert(task.IsCompletedSuccessfully, $"driving the board off the main thread ended {task.Status}.");
+        Assert(task.Result is not null, "SetWritable reported success outside a room.");
+
+        Report($"outside a room, SetWritable answered: {task.Result}");
     }
 #elif AGORA_WHITEBOARD
     /// <summary>Reads <c>+[WhiteSDK version]</c> through the binding's static property.</summary>
