@@ -197,6 +197,11 @@ namespace Net.Agora.Whiteboard.iOS {
 		[Export ("redo")]
 		void Redo ();
 
+		// Added in 2.16.138. NO selects the default, where remote updates are applied at a
+		// smoothed pace; YES applies each one as it arrives, trading smoothness for latency.
+		[Export ("setSyncMode:")]
+		void SetSyncMode (bool useSyncMode);
+
 		// retainPPT keeps a converted document's own content on the scene and clears only what was
 		// drawn over it.
 		[Export ("cleanScene:")]
