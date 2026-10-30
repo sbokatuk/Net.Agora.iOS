@@ -57,6 +57,13 @@ public partial class MainPage : ContentPage
             var result = await sdk.JoinRoomAsync(roomConfig, _callbacks);
 
             _room = result.Room;
+
+            // A room starts with serialization disabled, and in that state it keeps no history:
+            // FireCanUndoStepsUpdate never fires, however many strokes are drawn, and Undo and Redo
+            // do nothing. Enabling it needs every client in the room on SDK 2.9.3 or later (Web
+            // 2.9.2): upstream warns that app clients crash otherwise.
+            _room.DisableSerialization(false);
+
             Status("joined — draw on the board");
             SetJoined(true);
         }
