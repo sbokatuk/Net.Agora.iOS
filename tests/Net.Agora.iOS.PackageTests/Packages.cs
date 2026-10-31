@@ -30,7 +30,7 @@ public static class Packages
     public static readonly (string Id, string[] XcFrameworks, long MinPayloadBytes)[] All =
     [
         (Video, ["AgoraRtcKit", "aosl", "Agorafdkaac", "Agoraffmpeg", "AgoraSoundTouch", "video_dec"], 10_000_000),
-        (Voice, ["AgoraRtcKit", "aosl", "Agorafdkaac", "Agoraffmpeg", "AgoraSoundTouch"], 10_000_000),
+        (Voice, ["AgoraRtcKit", "aosl", "Agorafdkaac", "AgoraffmpegExtension", "AgoraSoundTouch"], 10_000_000),
         // Signaling is a smaller product: two frameworks, and the fetch script strips the xros
         // slices Agora ships only for this SDK.
         (Signaling, ["AgoraRtmKit", "aosl"], 4_000_000),
@@ -82,9 +82,20 @@ public static class Packages
         ("Net.Agora.Extensions.FaceCapture.iOS", ["AgoraFaceCaptureExtension"]),
         ("Net.Agora.Extensions.FaceDetection.iOS", ["AgoraFaceDetectionExtension"]),
         ("Net.Agora.Extensions.VideoQualityAnalyzer.iOS", ["AgoraVideoQualityAnalyzerExtension"]),
-        // The only two-framework extension: the encoder plugin and the codec it wraps.
-        ("Net.Agora.Extensions.VideoEncoder.iOS", ["AgoraVideoEncoderExtension", "video_enc"]),
+        ("Net.Agora.Extensions.VideoEncoder.iOS", ["AgoraVideoEncoderExtension"]),
         ("Net.Agora.Extensions.Av1Encoder.iOS", ["AgoraVideoAv1EncoderExtension"]),
+    ];
+
+    /// <summary>
+    /// The extensions a Voice app can use as well as a Video one. <see cref="Extensions"/> doesn't
+    /// tell them apart, because nothing in a package says which RTC flavour it is for.
+    /// </summary>
+    public static readonly string[] AudioExtensionIds =
+    [
+        "Net.Agora.Extensions.Ains.iOS",
+        "Net.Agora.Extensions.Aiaec.iOS",
+        "Net.Agora.Extensions.AudioBeauty.iOS",
+        "Net.Agora.Extensions.SpatialAudio.iOS",
     ];
 
     /// <summary>Every (extension package, target framework) pair.</summary>

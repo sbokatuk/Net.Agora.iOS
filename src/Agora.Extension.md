@@ -21,8 +21,7 @@ tens of MB across both slices.
 
 ## What the packages look like
 
-Every one of them is one (or, for `VideoEncoder`, two) `.xcframework` with no Objective-C class a
-consumer would call — the engine loads them itself. So each project's `ApiDefinition.cs` is
+Every one of them is one `.xcframework` with no Objective-C class a consumer would call — the engine loads them itself. So each project's `ApiDefinition.cs` is
 deliberately empty and the packed assembly is a ~6 KB stub next to the real payload in
 `<Assembly>.resources.zip`, which is why `tests/Net.Agora.iOS.PackageTests` holds them to a
 different set of expectations than the four real bindings.
@@ -31,14 +30,17 @@ They are still *binding* projects, because that is what packs a `NativeReference
 `<Assembly>.resources.zip` — and the iOS SDK refuses to build one without an API definition file
 ("No API definition file specified"), which is the only reason those empty files exist.
 
-`build/fetch-extensions.sh` stages them out of the same `AgoraRtcEngine_iOS` archive
-`build/fetch-video.sh` already downloads and checksums, so there is nothing new to pin in
-`build/checksums.txt`.
+`build/fetch-extensions.sh` stages them out of the same archives `build/fetch-video.sh` and
+`build/fetch-voice.sh` already download and checksum, so there is nothing new to pin in
+`build/checksums.txt`. The four audio extensions come from `AgoraAudio_iOS`, not
+`AgoraRtcEngine_iOS`: from 4.7.0 the builds in the video archive link `Agoraffmpeg`, which only
+the Video package ships, so one of them in a Voice app stops the app at launch.
 
 They deliberately depend on **neither** RTC package. The Video and Voice bindings are mutually
-exclusive in one app, so depending on either would force a flavour on the consumer; and the audio
-extensions work with both. The README tells consumers to add one alongside whichever RTC package
-they already have.
+exclusive in one app, so depending on either would force a flavour on the consumer, and the four
+audio extensions work with both. The other eight need the Video package: they link `Agoraffmpeg`,
+and nothing about a package stops one being added to a Voice app, so the README says so and each
+package's description does too.
 
 ## What is not here
 

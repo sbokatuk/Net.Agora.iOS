@@ -58,9 +58,7 @@
       Missing until found by actually running a consuming app on-device: AgoraRtcKit's binary
       links @rpath/video_dec.framework/video_dec directly (confirmed with `otool -L` against both
       slices), so dyld aborts the process at launch without it — a load-time failure, not something
-      the compiler or linker can catch, since nothing here calls into it directly. `video_enc.
-      xcframework`, the sibling one might expect to need too, is not referenced by AgoraRtcKit's
-      binary and is correctly left out.
+      the compiler or linker can catch, since nothing here calls into it directly.
     -->
     <NativeReference Include="lib/video_dec.xcframework">
       <Kind>Framework</Kind>

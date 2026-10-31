@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Foundation;
 using UIKit;
 
@@ -82,6 +83,13 @@ public sealed class AppDelegate : UIApplicationDelegate
 
         // Terminate so the runner's `simctl launch --console-pty` returns instead of hanging until
         // its timeout. Exiting from an iOS app is otherwise not something to imitate.
-        Environment.Exit(failures == 0 ? 0 : 1);
+        //
+        // _exit rather than Environment.Exit, which runs the process's exit handlers. From 4.7.0
+        // the voice build's AgoraffmpegExtension registers one that never returns: it spins in
+        // aosl_module_unregister, so the verdict prints and the process then sits there.
+        _exit(failures == 0 ? 0 : 1);
     }
+
+    [DllImport("/usr/lib/libSystem.dylib")]
+    private static extern void _exit(int status);
 }

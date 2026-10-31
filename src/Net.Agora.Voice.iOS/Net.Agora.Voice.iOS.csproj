@@ -29,10 +29,11 @@
     frameworks packed beside the assembly as <name>.resources.zip, unpacked and linked by the
     Apple SDK in whichever app references this package.
 
-    The voice build of AgoraRtcKit links exactly these four dependencies (every @rpath entry
-    `otool -L` reports, confirmed against the device and simulator slices) — notably no video_dec,
-    the load-time dependency the Video package has to carry. Fetched by build/fetch-voice.sh from
-    Agora's own SDK download, so they are not in git.
+    The voice build of AgoraRtcKit links three of these (every @rpath entry `otool -L` reports,
+    confirmed against the device and simulator slices) — notably no video_dec, the load-time
+    dependency the Video package has to carry. AgoraffmpegExtension, which replaced Agoraffmpeg
+    here in 4.7.0, is not linked but is in the pod's RtcBasic subspec: the engine loads it itself.
+    Fetched by build/fetch-voice.sh from Agora's own SDK download, so they are not in git.
 
     This package and Net.Agora.Video.iOS are mutually exclusive within one app: both ship a
     framework named AgoraRtcKit, so referencing both collides at bundle time. That mirrors Agora's
@@ -48,7 +49,7 @@
     <NativeReference Include="lib/Agorafdkaac.xcframework">
       <Kind>Framework</Kind>
     </NativeReference>
-    <NativeReference Include="lib/Agoraffmpeg.xcframework">
+    <NativeReference Include="lib/AgoraffmpegExtension.xcframework">
       <Kind>Framework</Kind>
     </NativeReference>
     <NativeReference Include="lib/AgoraSoundTouch.xcframework">
