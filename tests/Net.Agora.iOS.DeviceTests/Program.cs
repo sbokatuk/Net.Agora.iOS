@@ -35,8 +35,9 @@ public sealed class AppDelegate : UIApplicationDelegate
         // On the main thread deliberately: the Agora kits dispatch their delegate callbacks and
         // completion blocks through the main queue, and their own samples create and drive them
         // from it — the Signaling flavour's awaitable check relies on this and pumps the run
-        // loop rather than blocking. Nothing here blocks long enough to trip the watchdog — no
-        // check joins a channel or touches the network.
+        // loop rather than blocking. Nothing here blocks long enough to trip the watchdog: no
+        // check joins a channel, and the one that starts a join, on the Fastboard flavour, uses
+        // placeholders and gives up after 15 seconds.
         RunAndReport();
 
         return true;

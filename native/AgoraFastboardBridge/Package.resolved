@@ -1,0 +1,40 @@
+{
+  "pins" : [
+    {
+      "identity" : "dsbridge-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/netless-io/DSBridge-IOS.git",
+      "state" : {
+        "revision" : "4c780b208af869a577977c24f5bbb453c716f3ce",
+        "version" : "4.0.2"
+      }
+    },
+    {
+      "identity" : "fastboard-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/netless-io/fastboard-iOS.git",
+      "state" : {
+        "revision" : "98af898354ba37986bc582ec6f30fef63d4348a0"
+      }
+    },
+    {
+      "identity" : "white_yymodel",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/netless-io/White_YYModel.git",
+      "state" : {
+        "revision" : "c7b8527150ecce0a1758f0f84c73fab13dc73fcd",
+        "version" : "1.0.7"
+      }
+    },
+    {
+      "identity" : "whiteboard-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/netless-io/Whiteboard-iOS.git",
+      "state" : {
+        "revision" : "d4f005ae995c22bc8e32ecf6e2f18db23d257f2e",
+        "version" : "2.16.145"
+      }
+    }
+  ],
+  "version" : 2
+}
