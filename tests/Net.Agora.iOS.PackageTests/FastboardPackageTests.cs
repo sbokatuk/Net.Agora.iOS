@@ -53,4 +53,19 @@ public class FastboardPackageTests
         Assert.Contains(names, n => n == "fastboard/Whiteboard_Whiteboard.bundle/index.html");
         Assert.Contains(names, n => n == $"buildTransitive/{Packages.Fastboard}.targets");
     }
+
+    [Fact]
+    public void Fastboard_ships_the_bundle_its_error_messages_are_looked_up_in()
+    {
+        using var package = Packages.OpenPackage(Packages.Fastboard);
+        var names = package.Entries.Select(e => e.FullName).ToList();
+
+        // SwiftPM doesn't produce this one, so build-fastboard.sh does. Without it a consumer gets
+        // the bare key "joinRoomError" instead of a message.
+        const string Bundle = "fastboard/Fastboard_Fastboard.bundle/LocalizedStrings.bundle";
+
+        Assert.Contains(names, n => n == $"{Bundle}/Info.plist");
+        Assert.Contains(names, n => n == $"{Bundle}/en.lproj/Localizable.strings");
+        Assert.Contains(names, n => n == $"{Bundle}/zh-Hans.lproj/Localizable.strings");
+    }
 }

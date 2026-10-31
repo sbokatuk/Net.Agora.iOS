@@ -32,8 +32,8 @@
     second gives a blank board. Neither reports an error.
   -->
   <Target Name="ValidateAgoraFastboardBundles" BeforeTargets="Build;Pack"
-          Condition="!Exists('$(MSBuildProjectDirectory)/lib/Fastboard_Fastboard.bundle') Or !Exists('$(MSBuildProjectDirectory)/lib/Whiteboard_Whiteboard.bundle')">
-    <Error Text="lib/Fastboard_Fastboard.bundle or lib/Whiteboard_Whiteboard.bundle is missing — the toolbar or the board would come up blank. Run build/build-fastboard.sh first." />
+          Condition="!Exists('$(MSBuildProjectDirectory)/lib/Fastboard_Fastboard.bundle/LocalizedStrings.bundle') Or !Exists('$(MSBuildProjectDirectory)/lib/Whiteboard_Whiteboard.bundle')">
+    <Error Text="lib/Fastboard_Fastboard.bundle, its LocalizedStrings.bundle or lib/Whiteboard_Whiteboard.bundle is missing — the toolbar or the board would come up blank, or errors would read as bare keys. Run build/build-fastboard.sh first." />
   </Target>
 
   <ItemGroup>

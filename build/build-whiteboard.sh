@@ -12,9 +12,12 @@ set -euo pipefail
 # Usage:
 #   ./build/build-whiteboard.sh              # the version pinned in Directory.Build.props
 #   ./build/build-whiteboard.sh 2.16.137     # an explicit version
+#   ./build/build-whiteboard.sh --relock     # rewrite the lockfile for the pin, and build nothing
 #
 # Requires Xcode. No CocoaPods and no Ruby: the repository carries a Package.swift, so xcodebuild
-# resolves NTLBridge and White_YYModel itself.
+# resolves NTLBridge and White_YYModel itself. It does so at the commits in
+# native/Whiteboard/Package.resolved, because netless's manifest asks for them by version range and
+# ships no lockfile: see build/build-fastboard.sh for what that costs when it floats.
 #
 # Check what is published before bumping the pin:
 #   curl -s https://trunk.cocoapods.org/api/v1/pods/Whiteboard | python3 -m json.tool
@@ -24,7 +27,14 @@ cd "$(dirname "$0")"
 ROOT="$(cd .. && pwd)"
 CHECKSUMS="$ROOT/build/checksums.txt"
 DEST="$ROOT/src/Net.Agora.Whiteboard.iOS/lib"
+LOCKFILE="$ROOT/native/Whiteboard/Package.resolved"
 REPO="netless-io/Whiteboard-iOS"
+
+RELOCK=""
+if [ "${1:-}" = "--relock" ]; then
+    RELOCK=1
+    shift
+fi
 
 VERSION="${1:-}"
 if [ -z "${VERSION}" ]; then
@@ -73,6 +83,15 @@ fi
 # xcodebuild refuses to even list the schemes while it is there.
 rm -f "$WORK/src/_Pods.xcodeproj"
 
+if [ -n "$RELOCK" ]; then
+    ( cd "$WORK/src" && swift package resolve )
+    cp "$WORK/src/Package.resolved" "$LOCKFILE"
+    echo "Re-locked $LOCKFILE"
+    exit 0
+fi
+
+cp "$LOCKFILE" "$WORK/src/Package.resolved"
+
 # Two archives, one per platform. SKIP_INSTALL=NO is what puts the built objects in the archive at
 # all; BUILD_LIBRARY_FOR_DISTRIBUTION makes the Swift half of the target emit a stable module
 # interface, without which a consumer built by a different Swift compiler cannot link it.
@@ -86,6 +105,7 @@ for platform in iOS "iOS Simulator"; do
         -destination "generic/platform=$platform" \
         -archivePath "$WORK/$slug" \
         -derivedDataPath "$WORK/dd" \
+        -onlyUsePackageVersionsFromResolvedFile \
         SKIP_INSTALL=NO \
         BUILD_LIBRARY_FOR_DISTRIBUTION=YES ) \
         > "$WORK/$slug.log" 2>&1 || {

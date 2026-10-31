@@ -67,10 +67,12 @@
     <!--
       Fastboard is netless's UI layer over the Interactive Whiteboard, on its own line. Unlike every
       other product here it is Swift, so what this repository binds is not the SDK but the
-      Objective-C shim in native/AgoraFastboardBridge — see build/build-fastboard.sh.
+      Objective-C shim in native/AgoraFastboardBridge — see build/build-fastboard.sh. It carries its
+      own copy of the whiteboard library, and that copy's version comes from
+      native/AgoraFastboardBridge/Package.resolved, not from AgoraWhiteboardIosVersion above.
     -->
-    <AgoraFastboardIosVersion>1.4.5</AgoraFastboardIosVersion>
-    <AgoraFastboardBindingRevision>2</AgoraFastboardBindingRevision>
+    <AgoraFastboardIosVersion>1.4.6</AgoraFastboardIosVersion>
+    <AgoraFastboardBindingRevision>1</AgoraFastboardBindingRevision>
     <AgoraChatIosVersion>1.4.0</AgoraChatIosVersion>
     <AgoraChatInfraIosVersion>1.3.9</AgoraChatInfraIosVersion>
     <AgoraChatBindingRevision>3</AgoraChatBindingRevision>

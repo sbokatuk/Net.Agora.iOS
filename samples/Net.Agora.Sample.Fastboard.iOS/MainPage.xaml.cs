@@ -12,7 +12,8 @@ namespace Net.Agora.Sample.Fastboard.iOS;
 ///
 /// The three identifiers are the same three the plain Whiteboard sample uses: the App Identifier
 /// from the Agora Console under Interactive Whiteboard, and the room UUID and token from your own
-/// server's call to the whiteboard REST API.
+/// server's call to the whiteboard REST API. A room can only be joined from the region it was
+/// created in, so the region field has to match it; leave it empty for China.
 /// </summary>
 public partial class MainPage : ContentPage
 {
@@ -41,7 +42,10 @@ public partial class MainPage : ContentPage
 
         // CreateBoard() is FastboardHostView's job: it constructs AgoraFastboard, which builds its
         // own board view, and adds that view as a subview of the container MAUI laid out.
-        var configuration = new AgoraFastboardConfiguration(appIdentifier, roomUuid, roomToken, userUid: "ios-user");
+        var configuration = new AgoraFastboardConfiguration(appIdentifier, roomUuid, roomToken, userUid: "ios-user")
+        {
+            Region = RegionEntry.Text?.Trim() ?? string.Empty,
+        };
         _board = Board.CreateBoard(configuration);
 
         _delegate = new FastboardDelegate(this);

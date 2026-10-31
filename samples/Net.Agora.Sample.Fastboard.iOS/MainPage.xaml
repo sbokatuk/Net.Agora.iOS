@@ -7,7 +7,10 @@
 
     <Grid Padding="12" RowSpacing="8" RowDefinitions="Auto,Auto,*,Auto,Auto">
 
-        <Entry x:Name="AppIdentifierEntry" Grid.Row="0" Placeholder="Whiteboard App Identifier (org/app)" />
+        <Grid Grid.Row="0" ColumnDefinitions="2*,*" ColumnSpacing="8">
+            <Entry x:Name="AppIdentifierEntry" Placeholder="Whiteboard App Identifier (org/app)" />
+            <Entry x:Name="RegionEntry" Grid.Column="1" Placeholder="Region, e.g. us-sv" />
+        </Grid>
 
         <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="8">
             <Entry x:Name="RoomUuidEntry" Placeholder="Room UUID" />
@@ -27,7 +30,11 @@
             <Button x:Name="RedPencilButton" Text="Red pencil" Clicked="OnRedPencilClicked" IsEnabled="False" />
         </HorizontalStackLayout>
 
-        <Label x:Name="StatusLabel" Grid.Row="4" FontFamily="OpenSansRegular" FontSize="12" LineBreakMode="TailTruncation" />
+        <!--
+            No LineBreakMode: a truncating label isn't re-measured when its text changes, so this
+            one, which starts empty, would keep a height of zero and never appear.
+        -->
+        <Label x:Name="StatusLabel" Grid.Row="4" FontSize="12" />
 
     </Grid>
 
