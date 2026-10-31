@@ -20,15 +20,16 @@
         <!-- The board itself: a hand-rolled toolbar below, unlike Fastboard's built-in one. -->
         <local:WhiteboardHostView x:Name="Board" Grid.Row="2" />
 
-        <HorizontalStackLayout Grid.Row="3" Spacing="8">
-            <Button x:Name="JoinButton" Text="Join" Clicked="OnJoinClicked" />
-            <Button x:Name="LeaveButton" Text="Leave" Clicked="OnLeaveClicked" IsEnabled="False" />
-            <Button x:Name="PencilButton" Text="Pencil" Clicked="OnPencilClicked" IsEnabled="False" />
-            <Button x:Name="EraserButton" Text="Eraser" Clicked="OnEraserClicked" IsEnabled="False" />
-            <Button x:Name="UndoButton" Text="Undo" Clicked="OnUndoClicked" IsEnabled="False" />
-            <Button x:Name="RedoButton" Text="Redo" Clicked="OnRedoClicked" IsEnabled="False" />
-            <Button x:Name="ClearButton" Text="Clear" Clicked="OnClearClicked" IsEnabled="False" />
-        </HorizontalStackLayout>
+        <!-- Wraps because seven buttons are wider than a phone: in one row, Clear is off-screen. -->
+        <FlexLayout Grid.Row="3" Wrap="Wrap">
+            <Button x:Name="JoinButton" Text="Join" Margin="0,0,8,8" Clicked="OnJoinClicked" />
+            <Button x:Name="LeaveButton" Text="Leave" Margin="0,0,8,8" Clicked="OnLeaveClicked" IsEnabled="False" />
+            <Button x:Name="PencilButton" Text="Pencil" Margin="0,0,8,8" Clicked="OnPencilClicked" IsEnabled="False" />
+            <Button x:Name="EraserButton" Text="Eraser" Margin="0,0,8,8" Clicked="OnEraserClicked" IsEnabled="False" />
+            <Button x:Name="UndoButton" Text="Undo" Margin="0,0,8,8" Clicked="OnUndoClicked" IsEnabled="False" />
+            <Button x:Name="RedoButton" Text="Redo" Margin="0,0,8,8" Clicked="OnRedoClicked" IsEnabled="False" />
+            <Button x:Name="ClearButton" Text="Clear" Margin="0,0,8,8" Clicked="OnClearClicked" IsEnabled="False" />
+        </FlexLayout>
 
         <!--
             No LineBreakMode: a truncating label isn't re-measured when its text changes, so this

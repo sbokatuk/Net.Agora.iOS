@@ -191,6 +191,13 @@ namespace Net.Agora.Whiteboard.iOS {
 		[Async]
 		void SetWritable (bool writable, [NullAllowed] WhiteWritableHandler completionHandler);
 
+		// A room starts at YES, where undo and redo do nothing and fireCanUndoStepsUpdate: and
+		// fireCanRedoStepsUpdate: never fire, so an app that wants either passes NO after joining.
+		// NO needs every client in the room on SDK 2.9.3 or later (Web 2.9.2): upstream warns that
+		// app clients crash otherwise.
+		[Export ("disableSerialization:")]
+		void DisableSerialization (bool disable);
+
 		[Export ("undo")]
 		void Undo ();
 
