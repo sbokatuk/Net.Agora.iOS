@@ -47,8 +47,18 @@ public partial class MainPage : ContentPage
 
         try
         {
-            var sdk = new WhiteSDK(boardView, new WhiteSdkConfiguration(appIdentifier), callback: null);
+            var sdkConfig = new WhiteSdkConfiguration(appIdentifier);
             var roomConfig = new WhiteRoomConfig(roomUuid, roomToken, uid: "ios-user");
+
+            // A room can only be joined from the region it was created in. Left empty, the SDK uses
+            // its default.
+            if (RegionEntry.Text?.Trim() is { Length: > 0 } region)
+            {
+                sdkConfig.Region = region;
+                roomConfig.Region = region;
+            }
+
+            var sdk = new WhiteSDK(boardView, sdkConfig, callback: null);
             _callbacks = new RoomCallbacks(this);
 
             // JoinRoomAsync faults with an NSErrorException on a genuine join failure — unlike

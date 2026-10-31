@@ -19,7 +19,8 @@ let package = Package(
     ],
     dependencies: [
         // By revision, not by version: a tag is a mutable pointer, and this is the same commit
-        // build/checksums.txt records.
+        // build/checksums.txt records. What it pulls in is fixed by Package.resolved, beside this
+        // file; see build/build-fastboard.sh.
         .package(url: "https://github.com/netless-io/fastboard-iOS.git", revision: "@FASTBOARD_REVISION@")
     ],
     targets: [

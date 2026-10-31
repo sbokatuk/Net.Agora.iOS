@@ -94,6 +94,11 @@ dotnet test tests/Net.Agora.iOS.PackageTests
 The fetch scripts refuse to proceed if the downloaded archive's hash doesn't match
 `build/checksums.txt` — see that file for how to record a new version's hash.
 
+Whiteboard and Fastboard have no archive to fetch: `build/build-whiteboard.sh` and
+`build/build-fastboard.sh` compile them at the commits recorded in the same file, and
+`native/*/Package.resolved` fixes what they pull in through SwiftPM. Those lockfiles are enforced,
+so after moving either pin, re-lock with `./build/build-<product>.sh --relock` and commit the result.
+
 No single .NET SDK builds net8, net9 *and* net10 for iOS, so `BuildNugets.sh` packs twice (the
 installed SDK's band, then a `net10` pass from a scratch `global.json`) and merges the results —
 see `build/merge-packages.py`.
@@ -175,7 +180,8 @@ fault a Task the way Signaling's errors do.
 `samples/Net.Agora.Sample.Fastboard.iOS` drives `AgoraFastboard` on its own: a UIView it builds
 itself (with its own toolbar already drawn and wired), added to the page through a small MAUI
 handler — join, read-only toggle, and driving the board from code (a red pencil) alongside that
-toolbar.
+toolbar. Like the Whiteboard sample below, it has a region field, because a room can only be joined
+from the region it was created in. Left empty, Fastboard uses China.
 
 `samples/Net.Agora.Sample.Whiteboard.iOS` drives `WhiteSDK`/`WhiteRoom` on its own: the app owns
 the `WhiteBoardView` and joins through it directly, with a hand-rolled toolbar (pencil, eraser,
