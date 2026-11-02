@@ -59,11 +59,11 @@
     <!--
       Whiteboard is netless's, not Agora's own: Agora acquired the product and still documents it,
       but the source and the releases are netless-io's. Its iOS line runs ahead of the Android one
-      (2.16.137 vs 2.16.123) — they are separate repositories with separate release cadences, so
-      unlike the RTC products there is no reason to expect them to meet.
+      — they are separate repositories with separate release cadences, so unlike the RTC products
+      there is no reason to expect them to meet.
     -->
-    <AgoraWhiteboardIosVersion>2.16.137</AgoraWhiteboardIosVersion>
-    <AgoraWhiteboardBindingRevision>2</AgoraWhiteboardBindingRevision>
+    <AgoraWhiteboardIosVersion>2.16.147</AgoraWhiteboardIosVersion>
+    <AgoraWhiteboardBindingRevision>1</AgoraWhiteboardBindingRevision>
     <!--
       Fastboard is netless's UI layer over the Interactive Whiteboard, on its own line. Unlike every
       other product here it is Swift, so what this repository binds is not the SDK but the
