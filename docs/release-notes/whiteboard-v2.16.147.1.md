@@ -25,10 +25,21 @@ The embedded web bundle moves with them: `white-web-sdk` 2.16.59, `window-manage
 `WhiteRoom.SetSyncMode(bool)` is bound. `false`, the default, applies remote updates at a smoothed
 pace; `true` applies each one as it arrives, trading smoothness for latency.
 
+`WhiteRoom.DisableSerialization(bool)` is bound, and ships for the first time here. A room starts
+with serialization disabled, and in that state `Undo` and `Redo` do nothing and the can-undo and
+can-redo callbacks never fire. Call `DisableSerialization(false)` after each join to turn them on.
+Upstream's header warns that every client in the room must then be on SDK 2.9.3 or later (Web
+2.9.2), or app clients crash.
+
 Nothing that was already bound changed. Upstream did change two signatures, `addApp` and
 `dispatchDocsEvent`, but neither is in this binding. The rest of what upstream added isn't bound
 either, including `leaveRoomWithCompletionHandler:`, `fitOriginSizeAndCamera`, `focusApp` and the
 unified page state API.
+
+### Sample
+
+`Net.Agora.Sample.Whiteboard.iOS` calls `DisableSerialization(false)` after each join, so its Undo
+and Redo buttons now work. Its button row wraps, so Clear is no longer off-screen on a phone.
 
 ### Build
 
@@ -45,7 +56,7 @@ Target frameworks: `net8.0-ios18.0`, `net9.0-ios18.0`, `net10.0-ios26.0`.
 
 Reminder for consumers: the package ships `Whiteboard_Whiteboard.bundle` as content plus a
 `buildTransitive` targets file that declares it as a `BundleResource` in your app. The library looks
-the bundle up by that exact name, so referencing the package with `ExcludeAssets="build"` gives a
-blank board with no error. Referencing `Net.Agora.Fastboard.iOS` alongside this package is not
+the bundle up by that exact name, so referencing the package with
+`ExcludeAssets="buildTransitive"` gives a blank board with no error. Referencing `Net.Agora.Fastboard.iOS` alongside this package is not
 supported: Fastboard's static library already contains Whiteboard's objects, at the version
 fastboard-iOS resolves rather than this one, and both declare the same bundle.
