@@ -554,13 +554,19 @@ public static class SmokeTests
         Assert(failures.Messages.Count == 1, $"a refused join reported {failures.Messages.Count} failures, not 1.");
         Report($"refused: {failures.Messages[0]}");
 
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
+        // In the 17 CI jobs where this passed, the placeholders were turned down 3.8 to 12.0
+        // seconds after the refusal, each time with Error on setupSDK, and 2 of 19 jobs ran past
+        // the 15 seconds this used to allow. 45 is well clear of that spread and still bounded.
+        var started = DateTime.UtcNow;
+        var deadline = started + TimeSpan.FromSeconds(45);
         while (failures.Messages.Count < 2 && DateTime.UtcNow < deadline)
         {
             Foundation.NSRunLoop.Current.RunUntil(Foundation.NSDate.FromTimeIntervalSinceNow(0.05));
         }
 
-        Assert(failures.Messages.Count == 2, "the join with placeholders did not fail within 15 seconds.");
+        Assert(
+            failures.Messages.Count == 2,
+            $"the join with placeholders did not fail within {(DateTime.UtcNow - started).TotalSeconds:0.0} seconds.");
         Assert(
             failures.Messages[1] is "Join room error" or "Error on setupSDK",
             $"the failed join reported '{failures.Messages[1]}'.");

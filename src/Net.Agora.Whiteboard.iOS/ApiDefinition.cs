@@ -191,11 +191,23 @@ namespace Net.Agora.Whiteboard.iOS {
 		[Async]
 		void SetWritable (bool writable, [NullAllowed] WhiteWritableHandler completionHandler);
 
+		// A room starts at YES, where undo and redo do nothing and fireCanUndoStepsUpdate: and
+		// fireCanRedoStepsUpdate: never fire, so an app that wants either passes NO after joining.
+		// NO needs every client in the room on SDK 2.9.3 or later (Web 2.9.2): upstream warns that
+		// app clients crash otherwise.
+		[Export ("disableSerialization:")]
+		void DisableSerialization (bool disable);
+
 		[Export ("undo")]
 		void Undo ();
 
 		[Export ("redo")]
 		void Redo ();
+
+		// Added in 2.16.138. NO selects the default, where remote updates are applied at a
+		// smoothed pace; YES applies each one as it arrives, trading smoothness for latency.
+		[Export ("setSyncMode:")]
+		void SetSyncMode (bool useSyncMode);
 
 		// retainPPT keeps a converted document's own content on the scene and clears only what was
 		// drawn over it.
