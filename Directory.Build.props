@@ -63,7 +63,7 @@
       unlike the RTC products there is no reason to expect them to meet.
     -->
     <AgoraWhiteboardIosVersion>2.16.137</AgoraWhiteboardIosVersion>
-    <AgoraWhiteboardBindingRevision>2</AgoraWhiteboardBindingRevision>
+    <AgoraWhiteboardBindingRevision>3</AgoraWhiteboardBindingRevision>
     <!--
       Fastboard is netless's UI layer over the Interactive Whiteboard, on its own line. Unlike every
       other product here it is Swift, so what this repository binds is not the SDK but the
