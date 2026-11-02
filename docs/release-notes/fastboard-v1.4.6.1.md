@@ -72,6 +72,7 @@ Target frameworks: `net8.0-ios18.0`, `net9.0-ios18.0`, `net10.0-ios26.0`.
 
 Reminder for consumers: the package ships `Fastboard_Fastboard.bundle` and
 `Whiteboard_Whiteboard.bundle` as content plus a `buildTransitive` targets file that declares them as
-`BundleResource` items in your app; `ExcludeAssets="build"` gives a blank toolbar with no error.
+`BundleResource` items in your app; `ExcludeAssets="buildTransitive"` gives a blank toolbar with no
+error.
 Referencing `Net.Agora.Whiteboard.iOS` alongside this package is not supported — this static library
 already contains Whiteboard's objects and both declare the same bundle.
