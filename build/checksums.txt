@@ -29,7 +29,7 @@
 # A tag is a mutable pointer and netless has re-tagged before, so the tag is only how the clone
 # finds the commit; the commit is what the build scripts verify. To add one:
 #
-#   git ls-remote https://github.com/netless-io/Whiteboard-iOS.git refs/tags/2.16.137
+#   git ls-remote https://github.com/netless-io/Whiteboard-iOS.git refs/tags/2.16.147
 #
 # An annotated tag has two lines there; the commit is the peeled one, ending in ^{}.
 #
@@ -43,4 +43,5 @@ Agora_Chat_iOS-1.4.0 6b01c14e9b4bc9841d8265016d24c19421c2962cafaa6ae4ca4e37328eb
 AgoraInfra_iOS-1.3.5 cc90523f5b0d7ecafa8cb69fb962949f7cd10b130b1f70515ae6366dfbed4ca1
 AgoraInfra_iOS-1.3.9 d1d807ddcbd0cb1c4334b5c645548182a94bfde80e4c5adab910405f835ff9ff
 git:netless-io/Whiteboard-iOS@2.16.137 682daee176e23b93dbed25ec61cc1331c4793a07
+git:netless-io/Whiteboard-iOS@2.16.147 8a8a90b74920c11c6ceb152c21ba18f78199e384
 git:netless-io/fastboard-iOS@1.4.6 98af898354ba37986bc582ec6f30fef63d4348a0
