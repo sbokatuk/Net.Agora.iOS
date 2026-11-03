@@ -4,7 +4,7 @@ namespace Net.Agora.iOS.PackageTests;
 
 /// <summary>
 /// Four of the packages here ship an <c>aosl.xcframework</c> — Agora's own infrastructure library,
-/// which AgoraRtcKit, AgoraRtmKit, AgoraChat and eleven of the thirteen extension frameworks link
+/// which AgoraRtcKit, AgoraRtmKit, AgoraChat and every extension framework link
 /// as an <c>@rpath</c> dependency. In an app that references more than one of those packages they
 /// do not each get their own: every copy unpacks to <c>Frameworks/aosl.framework</c>, the bundle
 /// carries exactly one, and which one is whichever the build happened to keep. So every product in
@@ -13,18 +13,18 @@ namespace Net.Agora.iOS.PackageTests;
 /// <remarks>
 /// <para>
 /// That is not hypothetical. Up to <c>Net.Agora.Signaling.iOS</c> 2.2.6.2 the RTM zip's bundled
-/// aosl was 1.2.13 where the RTC pods bundle 1.3.5, and 1.2.13 does not export
+/// aosl was 1.2.13 where the RTC pods bundled 1.3.5, and 1.2.13 does not export
 /// <c>aosl_ref_magic</c>. An app referencing Signaling and Video could therefore fail to load
 /// AgoraRtcKit at all — decided by nothing the developer controls, and reported by nothing in the
 /// build. The Android bindings shipped the identical bug through a different mechanism
 /// (agora-rtm's vendored <c>libaosl.so</c>) and it reached a device before anyone saw it.
 /// </para>
 /// <para>
-/// The invariant is therefore not that the copies are identical — they are deliberately not, since
-/// Chat pins <c>AgoraInfra_iOS</c> 1.3.9 while the RTC pods and Signaling are on 1.3.5, and
-/// forcing lockstep between unrelated products would buy nothing. It is that <em>whichever copy
-/// wins, all of them still load</em>: every aosl symbol any framework here imports must be
-/// exported by every aosl any package here ships.
+/// The invariant is therefore not that the copies are identical — Chat pins its
+/// <c>AgoraInfra_iOS</c> separately from the RTC pods and Signaling, and forcing lockstep between
+/// unrelated products would buy nothing. It is that <em>whichever copy wins, all of them still
+/// load</em>: every aosl symbol any framework here imports must be exported by every aosl any
+/// package here ships.
 /// </para>
 /// <para>
 /// This reads real Mach-O symbol tables rather than comparing version strings, because a version
@@ -73,7 +73,7 @@ public class AoslCompatibilityTests
 
         // The extension packages ship no aosl of their own — they are native payload only — but
         // they link one, so they are consumers of whichever copy the app kept just as much as the
-        // SDKs are. Eleven of the thirteen frameworks import aosl symbols, two of them eleven
+        // SDKs are. Ten of the twelve frameworks import aosl symbols, two of them eleven
         // apiece. Left out, this check would pass on an aosl that satisfies every SDK and breaks
         // an extension, which is a failure mode with even less to show for itself: an extension
         // that cannot load reports a refused switch, not a crash.

@@ -32,6 +32,7 @@ public static class MachO
     private const uint MagicFat64 = 0xCAFEBABF;
     private const uint Magic64 = 0xFEEDFACF;       // little-endian 64-bit
     private const uint LcSymtab = 0x2;
+    private const uint LcLoadDylib = 0xC;
 
     // <mach-o/nlist.h>
     private const byte NTypeMask = 0x0E;
@@ -43,6 +44,36 @@ public static class MachO
 
     /// <summary>Symbols this binary references and does not define — <c>nm -u</c>.</summary>
     public static SortedSet<string> Undefined(byte[] image) => Symbols(image, exported: false);
+
+    /// <summary>
+    /// The install names dyld must resolve before this binary can load — the non-weak entries of
+    /// <c>otool -L</c>. LC_LOAD_WEAK_DYLIB is left out on purpose: a missing one is not fatal.
+    /// </summary>
+    public static SortedSet<string> RequiredLibraries(byte[] image)
+    {
+        var slice = FirstSlice(image);
+        var libraries = new SortedSet<string>(StringComparer.Ordinal);
+
+        var commandCount = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(slice + 16));
+        var cursor = slice + 32;
+
+        for (var i = 0; i < commandCount; i++)
+        {
+            var command = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(cursor));
+            var commandSize = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(cursor + 4));
+
+            if (command == LcLoadDylib)
+            {
+                // dylib_command: cmd, cmdsize, then dylib.name as an offset from this command.
+                var nameOffset = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(cursor + 8));
+                libraries.Add(ReadCString(image, cursor + (int)nameOffset));
+            }
+
+            cursor += (int)commandSize;
+        }
+
+        return libraries;
+    }
 
     private static SortedSet<string> Symbols(byte[] image, bool exported)
     {

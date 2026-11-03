@@ -85,8 +85,7 @@ mkdir -p "$DEST"
 # (AI noise suppression, face detection, virtual background, ...) that AgoraRtcKit does not itself
 # depend on — same reasoning as full-rtc-basic vs. full-sdk on Android, see
 # src/Net.Agora.Video.Android/Net.Agora.Video.Android.csproj in the sibling Net.Agora.Android
-# repository. video_enc.xcframework, video_dec's sibling, is one such plugin: AgoraRtcKit's binary
-# does not reference it.
+# repository.
 for framework in AgoraRtcKit aosl Agorafdkaac Agoraffmpeg AgoraSoundTouch video_dec; do
     if [ ! -d "$WORK/extracted/$framework.xcframework" ]; then
         echo "error: $framework.xcframework not found in the downloaded SDK" >&2

@@ -4,9 +4,16 @@ set -euo pipefail
 # Stages the optional RTC feature extensions' xcframeworks into
 # src/Net.Agora.Extensions.<Name>.iOS/lib.
 #
-# Same archive as fetch-video.sh: Agora ships every extension inside AgoraRtcEngine_iOS, alongside
-# AgoraRtcKit, at the same version. So there is one download for all twelve, verified against the
-# SHA-256 already recorded in build/checksums.txt for the Video SDK — nothing new to pin.
+# The same archives as fetch-video.sh and fetch-voice.sh, verified against the SHA-256s already
+# recorded in build/checksums.txt for those SDKs — nothing new to pin. Agora ships every extension
+# inside AgoraRtcEngine_iOS, alongside AgoraRtcKit, at the same version, and the four audio ones
+# inside AgoraAudio_iOS as well.
+#
+# Those four come from AgoraAudio_iOS, because they have to load in a Voice app as well as a Video
+# one. From 4.7.0 every framework in AgoraRtcEngine_iOS links @rpath/Agoraffmpeg.framework, which
+# the voice build no longer ships, so taking them from that archive kills a Voice app at launch
+# with a dyld failure. The AgoraAudio_iOS builds link only what both RTC packages carry, and
+# import the same three AgoraRtcKit symbols, which both builds of AgoraRtcKit export.
 #
 # Usage:
 #   ./build/fetch-extensions.sh            # the version pinned in Directory.Build.props
@@ -56,9 +63,18 @@ frameworks_for() {
         Extensions.FaceCapture)          echo "AgoraFaceCaptureExtension" ;;
         Extensions.FaceDetection)        echo "AgoraFaceDetectionExtension" ;;
         Extensions.VideoQualityAnalyzer) echo "AgoraVideoQualityAnalyzerExtension" ;;
-        Extensions.VideoEncoder)         echo "AgoraVideoEncoderExtension video_enc" ;;
+        Extensions.VideoEncoder)         echo "AgoraVideoEncoderExtension" ;;
         Extensions.Av1Encoder)           echo "AgoraVideoAv1EncoderExtension" ;;
         *)                               echo "" ;;
+    esac
+}
+
+# The archive each package's frameworks come from. See the comment at the top.
+archive_for() {
+    case "$1" in
+        Extensions.Ains|Extensions.Aiaec|Extensions.AudioBeauty|Extensions.SpatialAudio)
+            echo "AgoraAudio_iOS" ;;
+        *)  echo "AgoraRtcEngine_iOS" ;;
     esac
 }
 
@@ -66,13 +82,6 @@ packages=$(grep -v '^#' "$ROOT/build/packages.tsv" | grep -v '^[[:space:]]*$' | 
 
 if [ -z "${packages}" ]; then
     echo "error: build/packages.tsv lists no Extensions.* packages" >&2
-    exit 1
-fi
-
-expected=$(sed -n "s/^AgoraRtcEngine_iOS-$VERSION[[:space:]]\{1,\}\([0-9a-f]\{64\}\).*/\1/p" "$CHECKSUMS" | head -1)
-if [ -z "$expected" ]; then
-    echo "error: no SHA-256 recorded for AgoraRtcEngine_iOS-$VERSION in $CHECKSUMS" >&2
-    echo "       see the instructions at the top of that file for how to add one" >&2
     exit 1
 fi
 
@@ -84,22 +93,30 @@ sha256_of() {
     fi
 }
 
-echo "Fetching Agora Video iOS SDK $VERSION for its extensions..."
-
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-curl -fL -o "$WORK/sdk.zip" "https://download.agora.io/sdk/release/AgoraRtcEngine_iOS-$VERSION.zip"
+for artifact in AgoraRtcEngine_iOS AgoraAudio_iOS; do
+    expected=$(sed -n "s/^$artifact-$VERSION[[:space:]]\{1,\}\([0-9a-f]\{64\}\).*/\1/p" "$CHECKSUMS" | head -1)
+    if [ -z "$expected" ]; then
+        echo "error: no SHA-256 recorded for $artifact-$VERSION in $CHECKSUMS" >&2
+        echo "       see the instructions at the top of that file for how to add one" >&2
+        exit 1
+    fi
 
-actual=$(sha256_of "$WORK/sdk.zip")
-if [ "$actual" != "$expected" ]; then
-    echo "error: checksum mismatch for AgoraRtcEngine_iOS-$VERSION.zip" >&2
-    echo "       expected $expected" >&2
-    echo "       actual   $actual" >&2
-    exit 1
-fi
+    echo "Fetching $artifact $VERSION for its extensions..."
+    curl -fL -o "$WORK/$artifact.zip" "https://download.agora.io/sdk/release/$artifact-$VERSION.zip"
 
-unzip -q "$WORK/sdk.zip" -d "$WORK/extracted"
+    actual=$(sha256_of "$WORK/$artifact.zip")
+    if [ "$actual" != "$expected" ]; then
+        echo "error: checksum mismatch for $artifact-$VERSION.zip" >&2
+        echo "       expected $expected" >&2
+        echo "       actual   $actual" >&2
+        exit 1
+    fi
+
+    unzip -q "$WORK/$artifact.zip" -d "$WORK/$artifact"
+done
 
 staged=0
 for package in $packages; do
@@ -112,6 +129,7 @@ for package in $packages; do
 
     name="${package#Extensions.}"
     dest="$ROOT/src/Net.Agora.Extensions.$name.iOS/lib"
+    extracted="$WORK/$(archive_for "$package")"
 
     if [ ! -d "$ROOT/src/Net.Agora.Extensions.$name.iOS" ]; then
         echo "error: build/packages.tsv lists $package, but src/Net.Agora.Extensions.$name.iOS does not exist" >&2
@@ -122,11 +140,11 @@ for package in $packages; do
     mkdir -p "$dest"
 
     for framework in $frameworks; do
-        if [ ! -d "$WORK/extracted/$framework.xcframework" ]; then
+        if [ ! -d "$extracted/$framework.xcframework" ]; then
             echo "error: $framework.xcframework not found in the downloaded SDK (for $package)" >&2
             exit 1
         fi
-        cp -R "$WORK/extracted/$framework.xcframework" "$dest/"
+        cp -R "$extracted/$framework.xcframework" "$dest/"
     done
 
     echo "  $package: $frameworks"

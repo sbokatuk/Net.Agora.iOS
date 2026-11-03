@@ -52,6 +52,11 @@ public partial class MainPage : ContentPage
         // Who-is-speaking reports every 200 ms — drives the label above; uid 0 is this device.
         engine.EnableAudioVolumeIndication(200, 3, reportVad: false);
 
+        // Without this the plain JoinChannel overload below joins as Audience, which publishes
+        // nothing and isn't told about other Audience members: two of these samples would each sit
+        // in the channel alone, silent. See Net.Agora.Sample.iOS for the same fix.
+        engine.SetClientRole(AgoraClientRole.Broadcaster);
+
         var token = string.IsNullOrEmpty(TokenEntry.Text) ? null : TokenEntry.Text!.Trim();
         engine.JoinChannel(token, channelId, null, 0, joinSuccess: null);
 

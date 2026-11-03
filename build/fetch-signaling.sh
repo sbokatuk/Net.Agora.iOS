@@ -9,12 +9,12 @@ set -euo pipefail
 # different product from the RTC pair with its own native version line (2.2.x).
 #
 # Two archives, like fetch-chat.sh, and for a related reason. AgoraRtm_iOS does bundle its own
-# aosl.framework — but at 1.2.13, where the RTC pods bundle 1.3.5, and the older one does not
+# aosl.framework — but at 1.2.13, where the RTC pods bundle 1.3.16, and the older one does not
 # export aosl_ref_magic, which AgoraRtcKit resolves at load. An app that references Signaling and
 # either RTC package gets one aosl.framework in its bundle, not two, so whichever package's copy
 # the build keeps is the one both products have to run against; when that was this one, the RTC
 # engine failed to load. The bundled copy is therefore dropped on the floor and aosl comes from
-# AgoraInfra_iOS instead, which carries the RTC pods' 1.3.5 byte for byte. Verify after a bump:
+# AgoraInfra_iOS instead, which carries the RTC pods' 1.3.16 byte for byte. Verify after a bump:
 #
 #   nm -gU .../aosl.framework/aosl | grep aosl_ref_magic     # must be non-empty
 #

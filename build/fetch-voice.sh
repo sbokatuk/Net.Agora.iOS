@@ -82,11 +82,14 @@ mkdir -p "$DEST"
 # reports on AgoraRtcKit's own binary, confirmed against both the device and simulator slices of
 # the voice build. Notably *no* video_dec — the voice engine is built without the video pipeline,
 # which is what makes this pod worth binding separately at all. The other xcframeworks in the zip
-# (AI echo cancellation, AI noise suppression, audio beauty, lip sync, spatial audio) are optional
-# feature plugins AgoraRtcKit does not itself depend on — same reasoning as voice-rtc-basic vs.
-# voice-sdk on Android, see src/Net.Agora.Voice.Android in the sibling Net.Agora.Android
-# repository.
-for framework in AgoraRtcKit aosl Agorafdkaac Agoraffmpeg AgoraSoundTouch; do
+# (AI echo cancellation, AI noise suppression, audio beauty, spatial audio) are optional feature
+# plugins AgoraRtcKit does not itself depend on — same reasoning as voice-rtc-basic vs. voice-sdk
+# on Android, see src/Net.Agora.Voice.Android in the sibling Net.Agora.Android repository.
+#
+# AgoraffmpegExtension is the exception: from 4.7.0 AgoraRtcKit no longer links an ffmpeg framework
+# at all, so otool does not list it, but it replaced Agoraffmpeg in the pod's own RtcBasic subspec
+# and the engine loads it itself. Leaving it out would be invisible until a feature needed it.
+for framework in AgoraRtcKit aosl Agorafdkaac AgoraffmpegExtension AgoraSoundTouch; do
     if [ ! -d "$WORK/extracted/$framework.xcframework" ]; then
         echo "error: $framework.xcframework not found in the downloaded SDK" >&2
         exit 1
